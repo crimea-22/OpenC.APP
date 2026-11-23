@@ -126,7 +126,13 @@ input:focus,select:focus,textarea:focus{outline:0;border-color:var(--a)}
 .mg button{padding:12px;background:var(--bi);border-radius:8px}
 .mt{font-size:16px;font-weight:700}
 .multi #pxr,.multi #ivl{display:none}
-.fr #bn,.fr #top,.fr #pxr{display:none}
+.fr #bn,.fr #top,.fr #pxr,.fr #zc{display:none}
+body.fs #top,body.fs #pxr,body.fs #ivl,body.fs #bn{display:none}
+#wrap{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#zc{position:absolute;left:8px;bottom:30px;display:flex;flex-wrap:wrap;gap:4px;max-width:calc(100% - 80px);z-index:5}
+#zc button{min-width:36px;height:30px;padding:0 8px;font-size:13px;font-weight:600;background:var(--chip);color:var(--t);border:1px solid var(--l);border-radius:15px;touch-action:manipulation;backdrop-filter:blur(4px)}
+#zc button.on{background:var(--a);border-color:var(--a);color:#181A20}
+#zc.c button:not(#zt):not(#zs){display:none}
 @media (max-height:460px){#bn,#pxr{display:none}#top{padding-top:2px}}
 </style></head><body>
 <header>
@@ -143,7 +149,7 @@ input:focus,select:focus,textarea:focus{outline:0;border-color:var(--a)}
 <button id="tl">Trend</button><button id="hl">H-line</button><button id="fb">Fib</button><button id="bx">Box</button><button id="ry">Ray</button><button id="vl">V-line</button><button id="msr">Ruler</button><button id="tlg">Long</button><button id="tsh">Short</button><button id="nt">Note</button><button id="mgn">Magnet</button><button id="un">Undo</button><button id="cl">Clear</button><button id="al">Alerts <em id="ac2" style="font-style:normal;color:var(--a)"></em></button><button id="rs">Reset view</button><button id="sg">Signals <em id="sc" style="font-style:normal;color:var(--a)"></em></button><button id="bt">🤖 Bot <em id="bs" style="font-style:normal"></em></button><button id="dk">🧾 Desk</button><button id="sgo">🎯 Strategies</button><button id="rpb">⏯ Replay</button>
 <span id="st"><i></i><em>Connecting…</em></span>
 </div>
-<div id="grid"></div><div id="wrap"><canvas id="cv"></canvas><div id="ov"><div id="ohlc"></div><div id="chips"></div></div></div>
+<div id="grid"></div><div id="wrap"><canvas id="cv"></canvas><div id="ov"><div id="ohlc"></div><div id="chips"></div></div><div id="zc"><button id="zt" title="Chart size controls">↔↕</button><button id="zx1" title="Zoom out time (hold)">↔−</button><button id="zx2" title="Zoom in time (hold)">↔+</button><button id="zy1" title="Shrink price scale (hold)">↕−</button><button id="zy2" title="Stretch price scale (hold)">↕+</button><button id="zA" class="on" title="Auto-fit price scale">Auto</button><button id="zf" title="Fit chart">Fit</button><button id="zs" title="Full-screen chart">⛶</button></div></div>
 <div class="modal" id="mm"><div class="box"><input id="mq" placeholder="Search markets, e.g. Volatility, Gold, Apple" autocomplete="off"><div class="tabs" id="mt"></div><div class="lst" id="ml"></div></div></div>
 <div id="tt"></div>
 <div class="modal" id="am"><div class="box" style="height:auto;max-height:90%;overflow:auto"><b style="font-size:15px">Deriv account</b>
@@ -518,14 +524,14 @@ try{const s=JSON.parse(localStorage[K('oc')]);if(Array.isArray(s)&&s.length&&s.e
 let hs=0;try{const s=JSON.parse(localStorage[K('ocp')]);if(MK[s.s]){SRC.value=s.s;sy=s.y;sn=s.n;tf=s.t;ct=s.c;hs=1}}catch(e){}
 if(!hs&&FR){const q=[['R_100','Volatility 100 Index',60],['1HZ100V','Volatility 100 (1s) Index',60],['frxEURUSD','EUR/USD',300],['frxXAUUSD','Gold/USD',900]][(+PID-1)%4];sy=q[0];sn=q[1];tf=q[2]}
 act.forEach(a=>a.col=a.col||PAL[pc++%PAL.length]);$('ct').value=ct;
-let AX=64,UPc='#1fd1a5',DNc='#ff4d6d';const BY=22,fp=v=>v.toFixed(pd),sm=(id,on)=>$(id).classList.toggle('s',on);
+let YM=0,PHF=.2,AX=64,UPc='#1fd1a5',DNc='#ff4d6d';const BY=22,fp=v=>v.toFixed(pd),sm=(id,on)=>$(id).classList.toggle('s',on);
 const S=(t,c)=>{$('st').className=c;$('st').children[1].textContent=t};
 const sv=()=>{try{localStorage[K('oc')]=JSON.stringify(act.map(({k,p,col,o})=>({k,p,col,o})))}catch(e){}};
 const sp=()=>{try{localStorage[K('ocp')]=JSON.stringify({s:SRC.value,y:sy,n:sn,t:tf,c:ct})}catch(e){}};
 const calc=()=>{try{botRun(D)}catch(e){BO.res=null}act.forEach(a=>{try{a.res=IND[a.k].f(D,a.p,a);IND[a.k].post&&IND[a.k].post(a)}catch(e){a.res=[]}});botUI();dsLive()};
 const HA=d=>{let p;return d.map(x=>{const c=(x.o+x.h+x.l+x.c)/4,o=p?(p.o+p.c)/2:(x.o+x.c)/2;p={o,c};return{t:x.t,o,c,h:Math.max(x.h,o,c),l:Math.min(x.l,o,c)}})};
 const nice=s=>{const e=10**Math.floor(Math.log10(s)),f=s/e;return(f<1.5?1:f<3?2:f<7?5:10)*e};
-const clampR=()=>{r=Math.min(D.length+60,Math.max(10,r))};
+const clampR=()=>{r=Math.min(D.length+Math.max(60,(W-AX)/bw*.8),Math.max(10,r))};
 const rnd=()=>{let u=0;for(let i=0;i<6;i++)u+=Math.random();return u-3};
 /* ---------- AI bot: weighted ensemble, a call on every candle ---------- */
 let BO={thr:.15,h:1,per:1,strip:1,al:1,res:null};
@@ -680,7 +686,7 @@ $('gw').onclick=()=>{sgU=$('gu').value.trim()||sgU;sgC=sgC?0:1;svg();sgConn();sg
 
 /* ---------- data ---------- */
 function setD(a,keep){if(RP.on)return;D=a;pd=Math.min(8,Math.max(2,...a.slice(-30).map(x=>(String(x.c).split('.')[1]||'').length)));if(!keep||!r)fit();calc();draw()}
-function fit(){r=D.length+8;bw=Math.max(4,Math.min(12,(W-AX)/100))||8;yl=null;calc();again=1}
+function fit(){r=D.length+8;bw=Math.max(4,Math.min(12,(W-AX)/100))||8;yl=null;YM=0;calc();again=1}
 function upd(k){if(RP.on)return;chkAl(k.c);ptLive(k);const l=D[D.length-1],nw=!l||k.t>l.t;if(l&&l.t==k.t)D[D.length-1]=k;else if(nw){if(r>=D.length-1)r++;D.push(k)}calc();again=1;if(nw&&l)botFlip()}
 function fail(){S('Offline – demo data','off');SRC.value='Demo';sy='DEMO';sn='Demo Market';hd();load()}
 function demo(){pd=2;let p=1000,vo=8e-4;const step=()=>{vo=Math.max(2e-4,Math.min(3e-3,vo*.97+.03*8e-4+Math.abs(rnd())*1e-4));p*=1+rnd()*vo;return p},al=()=>Math.floor(Date.now()/1000/tf)*tf;
@@ -689,7 +695,7 @@ function demo(){pd=2;let p=1000,vo=8e-4;const step=()=>{vo=Math.max(2e-4,Math.mi
  tm=setInterval(()=>{const x=D[D.length-1],q=step(),nt=al();if(nt>x.t)upd({t:nt,o:x.c,h:Math.max(x.c,q),l:Math.min(x.c,q),c:q,v:1});else upd({...x,c:q,h:Math.max(x.h,q),l:Math.min(x.l,q),v:x.v+(Math.random()*9|0)})},350)}
 function load(keep){if(RP.on&&!keep)rpEnd();if(!keep)BT.tr=[];
  if(ws){ws.onmessage=ws.onerror=ws.onclose=null;try{ws.close()}catch(e){}ws=null}clearInterval(tm);clearInterval(pi);
- const id=++ld;if(!keep){DM=0;ER='';D=[];dr=DR[sy]||(DR[sy]=[]);tmp=null;vc=null;yl=null}S('Connecting…','');draw();
+ const id=++ld;if(!keep){DM=0;ER='';D=[];dr=DR[sy]||(DR[sy]=[]);tmp=null;vc=null;yl=null;YM=0}S('Connecting…','');draw();
  if(SRC.value=='Demo')return demo();
  const rc=()=>{if(id!=ld)return;S(D.length?'Reconnecting…':(ER||'Can’t reach the feed – retrying…'),'off');setTimeout(()=>id==ld&&load(1),D.length?2000:4000)};
  if(SRC.value=='Binance'){const iv=TFS.find(x=>x[1]==tf)[0];
@@ -733,7 +739,7 @@ function draw(){
  if(!W)return;g.setTransform(dpr,0,0,dpr,0,0);
  const bg=g.createLinearGradient(0,0,0,Hh);bg.addColorStop(0,TH.bg);bg.addColorStop(1,TH.bg);g.fillStyle=bg;g.fillRect(0,0,W,Hh);g.font='11px '+FF;g.setLineDash([]);
  if(!D.length){g.fillStyle=TH.mu;g.textAlign='center';g.fillText('Loading market data…',(W-AX)/2,Hh/2);return}
- const E=D.length-1,lx=D[E],v=vc==null?lx.c:vc,pw=W-AX,ah=Hh-BY,ov=act.filter(a=>IND[a.k].o),sb=act.filter(a=>!IND[a.k].o),ph=sb.length?Math.min(ah*.2,ah*.62/sb.length):0,mh=ah-ph*sb.length;
+ const E=D.length-1,lx=D[E],v=vc==null?lx.c:vc,pw=W-AX,ah=Hh-BY,ov=act.filter(a=>IND[a.k].o),sb=act.filter(a=>!IND[a.k].o),ph=sb.length?Math.min(ah*PHF,ah*.7/sb.length):0,mh=ah-ph*sb.length;
  const i0=Math.max(0,Math.floor(r-pw/bw)-1),i1=Math.min(E,Math.ceil(r)),X=i=>pw-(r-i)*bw,nv=!D.some(x=>x.v>0);
  const bi=cx==null?E:Math.max(0,Math.min(E,Math.round(r-(pw-cx)/bw)));
  const rng=(ss,zero,ex=[])=>{let lo=1e300,hi=-1e300;ss.forEach(a=>{for(let i=i0;i<=i1;i++){const q=a[i];if(q==q){if(q<lo)lo=q;if(q>hi)hi=q}}});ex.forEach(q=>{lo=Math.min(lo,q);hi=Math.max(hi,q)});if(zero){lo=Math.min(lo,0);hi=Math.max(hi,0)}if(lo>hi){lo=0;hi=1}if(lo==hi){lo-=1;hi+=1}const p=(hi-lo)*.06;return[lo-p,hi+p]};
@@ -774,8 +780,8 @@ function draw(){
  const c0=D.slice();c0[E]={...lx,c:v,h:Math.max(lx.h,v),l:Math.min(lx.l,v)};
  const cd=ct==1?HA(c0):c0,ln=ct==2||ct==3,ovs=ov.flatMap(a=>(a.res||[]).filter(s=>s.t!='h'&&!s.gx).flatMap(s=>s.e?[s.d,s.e]:[s.d]));
  let[lo,hi]=rng([cd.map(x=>ln?x.c:x.h),cd.map(x=>ln?x.c:x.l),...ovs]);
- if(yl==null){yl=lo;yh=hi}else{yl+=(lo-yl)*.3;yh+=(hi-yh)*.3;if(Math.abs(lo-yl)+Math.abs(hi-yh)>(hi-lo)*1e-3)again=1;else{yl=lo;yh=hi}}
- const Y=mk(0,mh,yl,yh);
+ if(yl==null){yl=lo;yh=hi}else if(!YM){yl+=(lo-yl)*.3;yh+=(hi-yh)*.3;if(Math.abs(lo-yl)+Math.abs(hi-yh)>(hi-lo)*1e-3)again=1;else{yl=lo;yh=hi}}
+ szUI();const Y=mk(0,mh,yl,yh);
  clip(0,mh,()=>{
   if(ln){g.beginPath();g.strokeStyle='#4d7cff';g.lineWidth=2;g.lineJoin='round';for(let i=i0;i<=i1;i++)g[i>i0?'lineTo':'moveTo'](X(i),Y(cd[i].c));g.stroke();
    if(ct==3){g.lineTo(X(i1),mh);g.lineTo(X(i0),mh);const f=g.createLinearGradient(0,0,0,mh);f.addColorStop(0,'#4d7cff66');f.addColorStop(1,'#4d7cff00');g.fillStyle=f;g.fill()}}
@@ -1265,16 +1271,40 @@ if(HZ.master)setTimeout(hzSync,0);
 const ps=new Map,pt=(x,y)=>{const m=pn[0];let t=tOf(r-(W-AX-x)/bw),p=m.hi-(y-m.y0)/m.h*(m.hi-m.lo);
  if(MG&&D.length){const i=Math.max(0,Math.min(D.length-1,Math.round(r-(W-AX-x)/bw))),b=D[i];let bd=1e9;[b.o,b.h,b.l,b.c].forEach(v=>{const py=m.y0+(m.hi-v)/(m.hi-m.lo)*m.h,dd=Math.abs(py-y);if(dd<bd){bd=dd;if(dd<=16){p=v;t=b.t}}})}
  return{t,p}};
-function zoom(f,x){const pw=W-AX,i=r-(pw-x)/bw;bw=Math.min(40,Math.max(1.5,bw*f));r=i+(pw-x)/bw;clampR()}
-cv.onpointerdown=e=>{cv.setPointerCapture(e.pointerId);ps.set(e.pointerId,[e.offsetX,e.offsetY]);cx=e.offsetX;cy=e.offsetY;
+const TZ=34;let LT=0,LZ='',fl=0,vx=0,lt=0,ds=null;
+function zoom(f,x){const pw=W-AX,i=r-(pw-x)/bw;bw=Math.min(60,Math.max(1,bw*f));r=i+(pw-x)/bw;clampR()}
+function szUI(){const a=$('zA');if(a){const c=YM?'':'on';if(a.className!=c)a.className=c}}
+function ym(){if(!YM&&pn.length){YM=1;if(yl==null){yl=pn[0].lo;yh=pn[0].hi}}szUI()}
+function pz(f,ay){const m=pn[0];if(!m)return;ym();const R=yh-yl,a=yl+R*(1-(ay-m.y0)/m.h),n=Math.min(1e9,Math.max(1e-9,R/f)),t=(a-yl)/R;yl=a-t*n;yh=yl+n;again=1}
+function pp(dy){const m=pn[0];if(!m)return;ym();const d=dy/m.h*(yh-yl);yl+=d;yh+=d;again=1}
+function setPH(y){const n=pn.length-1;if(n<1)return;const ah=Hh-BY;PHF=Math.min(.45,.7/n,Math.max(.08,(ah-y)/n/ah));again=1}
+function zoneOf(x,y,ty){const m=pn[0];if(!m)return'c';
+ if(y>=Hh-(ty=='mouse'?BY:TZ))return't';
+ if(pn.length>1&&Math.abs(y-pn[1].y0)<=(ty=='mouse'?5:14))return'd';
+ if(x>=W-AX&&y<m.y0+m.h)return'p';return'c'}
+function fling(){let v=vx*16;const st=()=>{v*=.94;if(Math.abs(v)<.3)return;const p=r;r-=v/bw;clampR();again=1;if(r==p)return;fl=requestAnimationFrame(st)};fl=requestAnimationFrame(st)}
+cv.onpointerdown=e=>{cancelAnimationFrame(fl);cv.setPointerCapture(e.pointerId);ps.set(e.pointerId,[e.offsetX,e.offsetY]);cx=e.offsetX;cy=e.offsetY;
+ if(ps.size==1){const z=zoneOf(cx,cy,e.pointerType),n=performance.now();ds=z;vx=0;lt=n;
+  if(z!='c'&&LZ==z&&n-LT<350){if(z=='p'){YM=0;yl=null}else if(z=='t'){bw=Math.max(4,Math.min(12,(W-AX)/100))||8;r=D.length+8}else PHF=.2;ds='x';LT=0;LZ='';szUI();again=1;return}
+  LT=n;LZ=z}
  if(tool&&D.length&&ps.size==1&&pn.length&&cy<pn[0].h&&cx<W-AX){const q=pt(cx,cy);if(tool=='h'||tool=='v'){dr.push({k:tool,a:q});fin()}else if(tool=='n'){const tx=prompt('Note');if(tx)dr.push({k:'n',a:q,x:String(tx).slice(0,60)});fin()}else if(tool=='a'){addAl(q.p);tool=null}else if(!tmp)tmp={k:tool,a:q,b:q,rr:PT.rr};else{tmp.b=q;dr.push(tmp);tmp=null;fin()}tb()}again=1};
 cv.onpointermove=e=>{const o=ps.get(e.pointerId),x=e.offsetX,y=e.offsetY;cx=x;cy=y;
- if(o){if(ps.size==2){const[a,b]=[...ps.values()],d0=Math.hypot(a[0]-b[0],a[1]-b[1]);ps.set(e.pointerId,[x,y]);const[c,d]=[...ps.values()];zoom(Math.hypot(c[0]-d[0],c[1]-d[1])/(d0||1),(c[0]+d[0])/2)}
-  else if(!tool){r-=(x-o[0])/bw;ps.set(e.pointerId,[x,y]);clampR()}}
+ if(!o)cv.style.cursor={p:'ns-resize',t:'ew-resize',d:'row-resize',c:''}[zoneOf(x,y,e.pointerType)]||'';
+ else if(ps.size==2){vx=0;const[a,b]=[...ps.values()],ax=Math.abs(a[0]-b[0]),ay=Math.abs(a[1]-b[1]);ps.set(e.pointerId,[x,y]);const[c,d]=[...ps.values()],bx=Math.abs(c[0]-d[0]),by=Math.abs(c[1]-d[1]);
+  if(by>bx*1.3&&ay>20)pz(by/ay,(c[1]+d[1])/2);else zoom(Math.hypot(bx,by)/(Math.hypot(ax,ay)||1),(c[0]+d[0])/2)}
+ else{const dx=x-o[0],dy=y-o[1];ps.set(e.pointerId,[x,y]);
+  if(ds=='p')pz(Math.exp(-dy*.008),pn[0].y0+pn[0].h/2);else if(ds=='t')zoom(Math.exp(dx*.01),W-AX);else if(ds=='d')setPH(y);
+  else if(ds=='c'&&!tool){r-=dx/bw;clampR();if(YM&&dy)pp(dy);const n=performance.now();vx=.8*vx+.2*dx/(n-lt||16);lt=n}}
  if(tmp&&pn.length)tmp.b=pt(x,y);again=1};
-cv.onpointerup=cv.onpointercancel=e=>ps.delete(e.pointerId);
+cv.onpointerup=cv.onpointercancel=e=>{ps.delete(e.pointerId);if(!ps.size){if(ds=='c'&&!tool&&e.type=='pointerup'&&e.pointerType!='mouse'&&Math.abs(vx)>.25)fling();ds=null}};
 cv.onpointerleave=e=>{if(e.pointerType=='mouse'){cx=null;again=1}};
-cv.onwheel=e=>{e.preventDefault();zoom(Math.exp(-e.deltaY*.0015),e.offsetX);again=1};
+cv.onwheel=e=>{e.preventDefault();const z=zoneOf(e.offsetX,e.offsetY,'mouse'),f=Math.exp(-e.deltaY*.0015);
+ if(z=='p')pz(f,pn[0].y0+pn[0].h/2);else if(e.shiftKey||Math.abs(e.deltaX)>Math.abs(e.deltaY)){r+=(e.deltaX||e.deltaY)/bw;clampR()}else if(e.altKey)pz(f,e.offsetY);else zoom(f,z=='t'?W-AX:e.offsetX);again=1};
+const hold=(b,fn)=>{let t,iv;const st=()=>{clearTimeout(t);clearInterval(iv)};b.onpointerdown=e=>{e.preventDefault();fn(1.25);t=setTimeout(()=>{iv=setInterval(()=>fn(1.07),50)},380)};b.onpointerup=b.onpointerleave=b.onpointercancel=st},cen=()=>pn[0]?pn[0].y0+pn[0].h/2:0;
+hold($('zx1'),k=>{zoom(1/k,W-AX);again=1});hold($('zx2'),k=>{zoom(k,W-AX);again=1});hold($('zy1'),k=>pz(1/k,cen()));hold($('zy2'),k=>pz(k,cen()));
+$('zA').onclick=()=>{YM=0;yl=null;again=1;szUI()};$('zf').onclick=()=>{if(D.length)fit()};
+$('zs').onclick=()=>{const f=document.body.classList.toggle('fs');$('zs').className=f?'on':''};
+$('zt').onclick=()=>$('zc').classList.toggle('c');if(innerWidth<600)$('zc').classList.add('c');
 new ResizeObserver(size).observe($('wrap'));
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&SRC.value!='Demo'&&(!ws||ws.readyState>1)&&D.length)load(1)});addEventListener('online',()=>{if(SRC.value!='Demo')load(1)});
 let m0='dark';try{m0=localStorage.ocm||'dark'}catch(e){}theme(m0,1);try{document.fonts&&document.fonts.ready.then(()=>{again=1})}catch(e){}
