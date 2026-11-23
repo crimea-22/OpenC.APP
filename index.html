@@ -133,6 +133,14 @@ body.fs #top,body.fs #pxr,body.fs #ivl,body.fs #bn{display:none}
 #zc button{min-width:36px;height:30px;padding:0 8px;font-size:13px;font-weight:600;background:var(--chip);color:var(--t);border:1px solid var(--l);border-radius:15px;touch-action:manipulation;backdrop-filter:blur(4px)}
 #zc button.on{background:var(--a);border-color:var(--a);color:#181A20}
 #zc.c button:not(#zt):not(#zs){display:none}
+#ohlc{pointer-events:none;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:11px;line-height:1.35}
+#cr{display:flex;gap:6px;margin-top:3px;pointer-events:none}
+#cr button{pointer-events:auto;display:flex;align-items:center;gap:5px;height:26px;padding:0 10px;font-size:11px;font-weight:600;color:var(--t);background:var(--chip);border:1px solid var(--l);border-radius:13px;backdrop-filter:blur(4px)}
+#cr button i{width:7px;height:7px;border-radius:50%;display:inline-block}
+#cr button.on{border-color:var(--a);color:var(--a)}
+#ov:not(.xo) #chips{display:none}
+#ov.xo #chips{max-height:min(36vh,240px);overflow-y:auto;overscroll-behavior:contain}
+#chips .chip{font-size:11px;margin:3px 4px 0 0;padding:2px 8px}
 @media (max-height:460px){#bn,#pxr{display:none}#top{padding-top:2px}}
 </style></head><body>
 <header>
@@ -149,7 +157,7 @@ body.fs #top,body.fs #pxr,body.fs #ivl,body.fs #bn{display:none}
 <button id="tl">Trend</button><button id="hl">H-line</button><button id="fb">Fib</button><button id="bx">Box</button><button id="ry">Ray</button><button id="vl">V-line</button><button id="msr">Ruler</button><button id="tlg">Long</button><button id="tsh">Short</button><button id="nt">Note</button><button id="mgn">Magnet</button><button id="un">Undo</button><button id="cl">Clear</button><button id="al">Alerts <em id="ac2" style="font-style:normal;color:var(--a)"></em></button><button id="rs">Reset view</button><button id="sg">Signals <em id="sc" style="font-style:normal;color:var(--a)"></em></button><button id="bt">🤖 Bot <em id="bs" style="font-style:normal"></em></button><button id="dk">🧾 Desk</button><button id="sgo">🎯 Strategies</button><button id="rpb">⏯ Replay</button>
 <span id="st"><i></i><em>Connecting…</em></span>
 </div>
-<div id="grid"></div><div id="wrap"><canvas id="cv"></canvas><div id="ov"><div id="ohlc"></div><div id="chips"></div></div><div id="zc"><button id="zt" title="Chart size controls">↔↕</button><button id="zx1" title="Zoom out time (hold)">↔−</button><button id="zx2" title="Zoom in time (hold)">↔+</button><button id="zy1" title="Shrink price scale (hold)">↕−</button><button id="zy2" title="Stretch price scale (hold)">↕+</button><button id="zA" class="on" title="Auto-fit price scale">Auto</button><button id="zf" title="Fit chart">Fit</button><button id="zs" title="Full-screen chart">⛶</button></div></div>
+<div id="grid"></div><div id="wrap"><canvas id="cv"></canvas><div id="ov"><div id="ohlc"></div><div id="cr"><button id="cs" style="display:none" aria-label="Indicators"></button><button id="tbt" style="display:none" aria-label="Indicator info tables"></button></div><div id="chips"></div></div><div id="zc"><button id="zt" title="Chart size controls">↔↕</button><button id="zx1" title="Zoom out time (hold)">↔−</button><button id="zx2" title="Zoom in time (hold)">↔+</button><button id="zy1" title="Shrink price scale (hold)">↕−</button><button id="zy2" title="Stretch price scale (hold)">↕+</button><button id="zA" class="on" title="Auto-fit price scale">Auto</button><button id="zf" title="Fit chart">Fit</button><button id="zs" title="Full-screen chart">⛶</button></div></div>
 <div class="modal" id="mm"><div class="box"><input id="mq" placeholder="Search markets, e.g. Volatility, Gold, Apple" autocomplete="off"><div class="tabs" id="mt"></div><div class="lst" id="ml"></div></div></div>
 <div id="tt"></div>
 <div class="modal" id="am"><div class="box" style="height:auto;max-height:90%;overflow:auto"><b style="font-size:15px">Deriv account</b>
@@ -524,7 +532,7 @@ try{const s=JSON.parse(localStorage[K('oc')]);if(Array.isArray(s)&&s.length&&s.e
 let hs=0;try{const s=JSON.parse(localStorage[K('ocp')]);if(MK[s.s]){SRC.value=s.s;sy=s.y;sn=s.n;tf=s.t;ct=s.c;hs=1}}catch(e){}
 if(!hs&&FR){const q=[['R_100','Volatility 100 Index',60],['1HZ100V','Volatility 100 (1s) Index',60],['frxEURUSD','EUR/USD',300],['frxXAUUSD','Gold/USD',900]][(+PID-1)%4];sy=q[0];sn=q[1];tf=q[2]}
 act.forEach(a=>a.col=a.col||PAL[pc++%PAL.length]);$('ct').value=ct;
-let YM=0,PHF=.2,AX=64,UPc='#1fd1a5',DNc='#ff4d6d';const BY=22,fp=v=>v.toFixed(pd),sm=(id,on)=>$(id).classList.toggle('s',on);
+let TBL=(()=>{try{const v=localStorage.octb;return v==null?innerWidth>=700:v=='1'}catch(e){return innerWidth>=700}})(),tabN=0,tabL=0,xt=0,YM=0,PHF=.2,AX=64,UPc='#1fd1a5',DNc='#ff4d6d';const BY=22,fp=v=>v.toFixed(pd),sm=(id,on)=>$(id).classList.toggle('s',on);
 const S=(t,c)=>{$('st').className=c;$('st').children[1].textContent=t};
 const sv=()=>{try{localStorage[K('oc')]=JSON.stringify(act.map(({k,p,col,o})=>({k,p,col,o})))}catch(e){}};
 const sp=()=>{try{localStorage[K('ocp')]=JSON.stringify({s:SRC.value,y:sy,n:sn,t:tf,c:ct})}catch(e){}};
@@ -748,7 +756,7 @@ function draw(){
   g.strokeStyle=TH.gr;g.fillStyle=TH.mu;g.lineWidth=1;g.textAlign='left';
   for(let q=Math.ceil(lo/st)*st;q<hi;q+=st){const y=Math.round(Y(q))+.5;g.beginPath();g.moveTo(0,y);g.lineTo(pw,y);g.stroke();g.fillText(q.toFixed(dc),pw+6,y+4)}
   g.strokeStyle=TH.ax;g.beginPath();g.moveTo(0,y0+.5);g.lineTo(W,y0+.5);g.stroke();pn.push({y0,h,lo,hi,dc});return Y};
- let tabY=8;
+ let tabY=8;tabL=tabN;tabN=0;
  const gfx=(s,Y,a)=>{const T=s.t,E=D.length-1;g.save();
   if(T=='z'){for(const q of s.g){const x0=X(q.a)-bw/2,x1=q.b==null?pw:X(q.b)+bw/2;if(x1<0||x0>pw)continue;const y1=Y(q.hi),y2=Y(q.lo);g.globalAlpha=q.al==null?.2:q.al;g.fillStyle=q.c;g.fillRect(x0,y1,x1-x0,y2-y1);
    if(q.bd){g.globalAlpha=Math.min(1,(q.al||.2)*3.4);g.strokeStyle=q.c;g.lineWidth=1;g.setLineDash(q.dash?[4,3]:[]);g.strokeRect(x0+.5,y1+.5,x1-x0,y2-y1)}
@@ -761,7 +769,7 @@ function draw(){
     if(k=='u'||k=='d'){const dy=k=='u'?1:-1,py=y+dy*(q.off==null?8:q.off);g.beginPath();g.moveTo(x,py);g.lineTo(x-sz,py+dy*sz*1.4);g.lineTo(x+sz,py+dy*sz*1.4);g.closePath();g.fill();if(q.l&&bw>=4)g.fillText(q.l,x,dy>0?py+sz*1.4+10:py-sz*1.4-4)}
     else if(k=='o'){g.beginPath();g.arc(x,y,q.r||3,0,7);if(q.h){g.lineWidth=1.3;g.stroke()}else g.fill()}
     else if(k=='p'){const w=g.measureText(q.l).width+8;g.fillRect(x-w/2,y-7,w,13);g.fillStyle='#fff';g.fillText(q.l,x,y+3)}}}
-  else if(T=='tab'&&tabY<Hh*.62){const t=s.g,rw=t.r;g.font='10px '+FF;const w1=Math.max(...rw.map(r=>g.measureText(r[0]).width)),w2=Math.max(...rw.map(r=>g.measureText(r[1]).width)),tw=Math.max(w1+w2+22,g.measureText(t.t).width+14),h=(rw.length+1)*14+8,x=pw-8-tw;
+  else if(T=='tab'&&(tabN++,TBL)&&tabY<Hh*.62){const t=s.g,rw=t.r;g.font='10px '+FF;const w1=Math.max(...rw.map(r=>g.measureText(r[0]).width)),w2=Math.max(...rw.map(r=>g.measureText(r[1]).width)),tw=Math.max(w1+w2+22,g.measureText(t.t).width+14),h=(rw.length+1)*14+8,x=pw-8-tw;
    g.globalAlpha=.88;g.fillStyle=TH.tag;g.fillRect(x,tabY,tw,h);g.globalAlpha=1;g.strokeStyle=TH.ax;g.lineWidth=1;g.strokeRect(x+.5,tabY+.5,tw,h);g.fillStyle=TH.hi;g.font='700 10px '+FF;g.textAlign='left';g.fillText(t.t,x+7,tabY+14);g.font='10px '+FF;
    rw.forEach((r,i)=>{const y=tabY+28+i*14;g.fillStyle=TH.mu;g.textAlign='left';g.fillText(r[0],x+7,y);g.fillStyle=r[2]||TH.hi;g.textAlign='right';g.fillText(r[1],x+tw-7,y)});tabY+=h+6}
   g.restore()};
@@ -838,7 +846,7 @@ $('th').onclick=()=>theme(TM=='light'?'dark':'light');
 addEventListener('message',e=>{const m=e.data;if(m&&m.oc=='theme')theme(m.m,1)});
 /* ---------- UI ---------- */
 function size(){dpr=devicePixelRatio||1;const b=cv.getBoundingClientRect();W=b.width;Hh=b.height;AX=W<520?56:64;document.documentElement.style.setProperty('--ax',AX+'px');cv.width=Math.round(W*dpr);cv.height=Math.round(Hh*dpr);again=1}
-function chips(){$('chips').innerHTML=act.map((a,i)=>'<span class="chip"><i style="width:8px;height:8px;border-radius:4px;background:'+a.col+'"></i><span onclick="edit('+i+')">'+IND[a.k].n+(a.p.length?' '+a.p.join(','):'')+(IND[a.k].set?' ⚙':'')+'</span><b onclick="rm('+i+')">✕</b></span>').join('')}
+function chips(){$('chips').innerHTML=act.map((a,i)=>'<span class="chip"><i style="width:8px;height:8px;border-radius:4px;background:'+a.col+'"></i><span onclick="edit('+i+')">'+IND[a.k].n+(a.p.length?' '+a.p.join(','):'')+(IND[a.k].set?' ⚙':'')+'</span><b onclick="rm('+i+')">✕</b></span>').join('');csUI()}
 function change(){sv();chips();calc();again=1}
 function add(k){act.push({k,p:[...IND[k].p],col:PAL[pc++%PAL.length]});sm('im',0);change()}
 function rm(i){act.splice(i,1);change()}
@@ -1273,7 +1281,15 @@ const ps=new Map,pt=(x,y)=>{const m=pn[0];let t=tOf(r-(W-AX-x)/bw),p=m.hi-(y-m.y
  return{t,p}};
 const TZ=34;let LT=0,LZ='',fl=0,vx=0,lt=0,ds=null;
 function zoom(f,x){const pw=W-AX,i=r-(pw-x)/bw;bw=Math.min(60,Math.max(1,bw*f));r=i+(pw-x)/bw;clampR()}
-function szUI(){const a=$('zA');if(a){const c=YM?'':'on';if(a.className!=c)a.className=c}}
+function szUI(){const a=$('zA');if(a){const c=YM?'':'on';if(a.className!=c)a.className=c}
+ const t=$('tbt');if(t){const k=tabL+'|'+TBL;if(t.dataset.k!=k){t.dataset.k=k;t.style.display=tabL?'':'none';t.className=TBL?'on':'';t.innerHTML='<span>Info</span><span>'+tabL+'</span>'}}}
+function csUI(){const b=$('cs');if(!b)return;const n=act.length,o=$('ov').classList.contains('xo');b.style.display=n?'':'none';
+ b.innerHTML='<span style="color:var(--a)">ƒx</span>'+act.slice(0,6).map(a=>'<i style="background:'+a.col+'"></i>').join('')+'<span>'+n+'</span><span>'+(o?'▴':'▾')+'</span>';if(!n&&o)xo(0)}
+function xo(on){$('ov').classList.toggle('xo',!!on);clearTimeout(xt);if(on)xt=setTimeout(()=>xo(0),6000);csUI()}
+$('cs').onclick=()=>xo(!$('ov').classList.contains('xo'));
+$('chips').addEventListener('pointerdown',()=>{if($('ov').classList.contains('xo'))xo(1)});
+cv.addEventListener('pointerdown',()=>{if($('ov').classList.contains('xo'))xo(0)});
+$('tbt').onclick=()=>{TBL=!TBL;try{localStorage.octb=TBL?1:0}catch(e){}again=1};
 function ym(){if(!YM&&pn.length){YM=1;if(yl==null){yl=pn[0].lo;yh=pn[0].hi}}szUI()}
 function pz(f,ay){const m=pn[0];if(!m)return;ym();const R=yh-yl,a=yl+R*(1-(ay-m.y0)/m.h),n=Math.min(1e9,Math.max(1e-9,R/f)),t=(a-yl)/R;yl=a-t*n;yh=yl+n;again=1}
 function pp(dy){const m=pn[0];if(!m)return;ym();const d=dy/m.h*(yh-yl);yl+=d;yh+=d;again=1}
