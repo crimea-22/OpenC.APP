@@ -62,6 +62,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
 .lst{overflow:auto;flex:1}
 .it{padding:12px 6px;border-bottom:1px solid var(--l);cursor:pointer;display:flex;justify-content:space-between;gap:8px}
 .it small{color:var(--m)}
+.it>span{min-width:0}.it .ds{display:block;font-size:11px;line-height:1.35;margin-top:3px;font-weight:400}.it .tg{white-space:nowrap;align-self:flex-start}
 .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#44506f;margin-right:8px}.dot.o{background:var(--u)}
 #tt{white-space:pre-line;position:fixed;top:12px;left:50%;transform:translateX(-50%);background:#ffb938;color:#1a1200;font-weight:700;padding:10px 16px;border-radius:12px;z-index:9;display:none;box-shadow:0 8px 30px #000a;max-width:90%}
 #grid{flex:1;display:none;gap:4px;padding:4px;min-height:0}
@@ -496,6 +497,366 @@ function lorentz(d,o,a){const n=d.length;if(n<80)return[];const B=o.bars,K=Math.
  for(let i=F0+1;i<n;i++){const s=z.sig[i];if(s==0||s==z.sig[i-1])continue;const x=d[i],l=o.lab?String(z.pred[i]):'';mk.push(s>0?{i,y:x.l,k:'u',c:o.bu,l}:{i,y:x.h,k:'d',c:o.be,l});if(i+B<=n-1){nt++;if((c[i+B]-c[i])*s>0)wn++}}
  const s=z.sig[n-1];return[GX('m',TL2(mk,300)),GX('tab',{t:'Lorentzian Classification',r:[['Signal',s>0?'Long':s<0?'Short':'Flat',s>0?o.bu:s<0?o.be:GREY],['Prediction',(z.pred[n-1]>0?'+':'')+z.pred[n-1]+' / '+K,GREY],['Win rate (+'+B+' bars)',nt?Math.round(100*wn/nt)+'% of '+nt:'–',GREY]]})]}
 
+/* ======================================================================
+   PREMIUM SUITE v2: open-methodology implementations of the 24 tools in the request.
+   They reproduce the PUBLIC IDEAS of each family (structure, liquidity, momentum, ...), not
+   the closed-source code of the vendors. All markers fire on a CLOSED bar (no look-ahead).
+   ====================================================================== */
+const STAR=['','★','★★','★★★','★★★★'];
+const kama=(a,n,fa=2,sl=30)=>{const f=2/(fa+1),s=2/(sl+1),o=new Array(a.length).fill(N);let p=N;for(let i=n;i<a.length;i++){if(a[i]!=a[i]||a[i-n]!=a[i-n])continue;if(p!=p){p=a[i];o[i]=p;continue}let v=0;for(let j=i-n+1;j<=i;j++)v+=Math.abs(a[j]-a[j-1]);const er=v>0?Math.abs(a[i]-a[i-n])/v:0,sc=(er*(f-s)+s)**2;p+=sc*(a[i]-p);o[i]=p}return o};
+const lrg=(a,n)=>{const m=a.length,sl=new Array(m).fill(N),r2=sl.slice(),v=sl.slice(),sx=(n-1)*n/2,sxx=(n-1)*n*(2*n-1)/6,den=n*sxx-sx*sx;for(let i=n-1;i<m;i++){let sy=0,sxy=0,syy=0,bad=0;for(let j=0;j<n;j++){const y=a[i-n+1+j];if(y!=y){bad=1;break}sy+=y;sxy+=j*y;syy+=y*y}if(bad)continue;const b=(n*sxy-sx*sy)/den,vy=n*syy-sy*sy;sl[i]=b;r2[i]=vy>0?Math.pow(n*sxy-sx*sy,2)/(den*vy):0;v[i]=(sy-b*sx)/n+b*(n-1)}return{sl,r2,v}};
+const clv=x=>x.h>x.l?((x.c-x.l)-(x.h-x.c))/(x.h-x.l):0;
+const pvol=(d,at)=>d.map((x,i)=>x.v>0?x.v:(x.h-x.l)/((at&&at[i]>0)?at[i]:1)||0);
+function stLine(base,at,mul,c){const n=base.length,u=[],l=[],dir=new Array(n).fill(0),line=new Array(n).fill(N);let dr=1;
+ for(let i=0;i<n;i++){if(base[i]!=base[i]||at[i]!=at[i]){u.push(N);l.push(N);continue}let bu=base[i]+mul*at[i],bl=base[i]-mul*at[i];
+  if(i&&u[i-1]==u[i-1]){const pc=c[i-1];bu=(bu<u[i-1]||pc>u[i-1])?bu:u[i-1];bl=(bl>l[i-1]||pc<l[i-1])?bl:l[i-1];if(dr<0&&c[i]>bu)dr=1;else if(dr>0&&c[i]<bl)dr=-1}
+  u.push(bu);l.push(bl);dir[i]=dr;line[i]=dr>0?bl:bu}
+ return{dir,line,u,l}}
+/* ATR-threshold zigzag. Each pivot is only known at bar c (confirmation), never earlier. */
+function zz(d,mul,at){const n=d.length,P=[];let dir=0,hi=d[0].h,hI=0,lo=d[0].l,lI=0;
+ for(let i=1;i<n;i++){const x=d[i],a=(at[i]==at[i]?at[i]:0)*mul;if(!(a>0))continue;
+  if(dir>=0&&x.h>hi){hi=x.h;hI=i}if(dir<=0&&x.l<lo){lo=x.l;lI=i}
+  if(dir>=0&&hi-x.l>=a){P.push({i:hI,p:hi,h:1,c:i});dir=-1;lo=x.l;lI=i}
+  else if(dir<=0&&x.h-lo>=a){P.push({i:lI,p:lo,h:0,c:i});dir=1;hi=x.h;hI=i}}
+ return{P,dir,cur:{i:dir>0?hI:lI,p:dir>0?hi:lo,h:dir>0?1:0}}}
+function rfil(d,per,mul){const c=C(d),n=d.length,ac=c.map((v,i)=>i?Math.abs(v-c[i-1]):N),sr=ema(ema(ac,per),Math.max(1,per*2-1)).map(v=>v*mul),f=new Array(n).fill(N),dir=new Array(n).fill(0);let p=N,dr=0;
+ for(let i=1;i<n;i++){if(sr[i]!=sr[i])continue;if(p!=p)p=c[i];else if(c[i]-sr[i]>p)p=c[i]-sr[i];else if(c[i]+sr[i]<p)p=c[i]+sr[i];f[i]=p;if(f[i-1]==f[i-1])dr=p>f[i-1]?1:p<f[i-1]?-1:dr;dir[i]=dr}
+ return{f,dir,hi:f.map((v,i)=>v+sr[i]),lo:f.map((v,i)=>v-sr[i]),sr}}
+function sqzM(d,len,bm,km){const c=C(d),m=sma(c,len),s=sd(c,len),at=sma(tr(d),len),hv=hh(H(d),len),lv=ll(Lw(d),len),
+ on=c.map((_,i)=>m[i]==m[i]&&at[i]==at[i]?(bm*s[i]<km*at[i]?1:0):N),src=c.map((v,i)=>v-((hv[i]+lv[i])/2+m[i])/2);return{v:lrg(src,len).v,on}}
+const sw5=(a,i,k)=>{let m=Infinity;for(let j=i-k+1;j<=i;j++)if(a[j]<m)m=a[j];return m};
+/* shared module cores (used by the single tools and by the Zeiierman suite) */
+function zeTf(d,o){const R=rfil(d,o.per,o.mul),mk=[];for(let i=2;i<d.length;i++)if(R.dir[i]&&R.dir[i-1]&&R.dir[i]!=R.dir[i-1]){const up=R.dir[i]>0;mk.push({i,y:up?d[i].l:d[i].h,k:up?'u':'d',c:up?o.bu:o.be,l:'Trend'})}return{R,mk}}
+function zeRf(d,o){const n=d.length,c=C(d),m=sma(c,20),s=sd(c,20),rs=rsiA(c,14),mk=[];let last=0;
+ for(let i=40;i<n;i++){const x=d[i],p=d[i-1],rg=x.h-x.l;if(!(rg>0)||s[i]!=s[i])continue;
+  const lb=m[i]-o.k*s[i],ub=m[i]+o.k*s[i];let up=0,dn=0;
+  const bull=x.l<lb&&x.c>lb&&sw5(rs,i,3)<=o.rsi&&((Math.min(x.o,x.c)-x.l)>=.4*rg||(p.c<p.o&&x.c>x.o&&x.c>=p.o&&x.o<=p.c)),
+   bear=x.h>ub&&x.c<ub&&Math.max(...rs.slice(i-2,i+1))>=100-o.rsi&&((x.h-Math.max(x.o,x.c))>=.4*rg||(p.c>p.o&&x.c<x.o&&x.c<=p.o&&x.o>=p.c));
+  if(!bull&&!bear||i-last<3)continue;last=i;
+  let dv=0;if(o.div&&i>45){if(bull){const a1=Math.min(...d.slice(i-14,i+1).map(q=>q.l)),a0=Math.min(...d.slice(i-30,i-14).map(q=>q.l));dv=a1<a0&&sw5(rs,i,15)>Math.min(...rs.slice(i-30,i-14))?1:0}else{const a1=Math.max(...d.slice(i-14,i+1).map(q=>q.h)),a0=Math.max(...d.slice(i-30,i-14).map(q=>q.h));dv=a1>a0&&Math.max(...rs.slice(i-14,i+1))<Math.max(...rs.slice(i-30,i-14))?1:0}}
+  mk.push(bull?{i,y:x.l,k:'u',c:o.bu,l:dv?'Rev+Div':'Rev'}:{i,y:x.h,k:'d',c:o.be,l:dv?'Rev+Div':'Rev'})}
+ return{mk}}
+function zeBf(d,o,dir){const n=d.length,mk=[];let last=-9;for(let i=o.look+1;i<n;i++){let hi=-Infinity,lo=Infinity;for(let j=i-o.look;j<i;j++){if(d[j].h>hi)hi=d[j].h;if(d[j].l<lo)lo=d[j].l}
+  const up=d[i].c>hi&&d[i-1].c<=hi,dn=d[i].c<lo&&d[i-1].c>=lo;if(!(up||dn)||i-last<4)continue;if(dir&&(up?dir[i]<0:dir[i]>0))continue;last=i;mk.push(up?{i,y:d[i].l,k:'u',c:o.bu,l:'Brk'}:{i,y:d[i].h,k:'d',c:o.be,l:'Brk'})}return{mk}}
+
+const PREM_DESC={
+lux:'Algorithmic buy/sell signals with a smart trailing trend line, contrarian reversal dots and an automatic TP/SL ladder. Strong signals carry a +.',
+pac:'Market structure engine: BOS and CHoCH breaks, order blocks, fair value gaps, equal highs/lows and liquidity sweeps.',
+mcb:'Oscillator: WaveTrend momentum, money-flow area, buy/sell cross dots and bull/bear divergences for reversals.',
+orc:'Trend-change oracle: adaptive KAMA trend plus regression slope, RSI and MACD scored into an up/down probability on every flip.',
+mdp:'Market dynamics: HH/HL/LH/LL structure, unswept liquidity pools and supply/demand zones from displacement candles.',
+ssa:'Smart Signals Assistant: adaptive trailing-stop trend with buy/sell signals graded 1 to 4 stars by momentum, ADX and trend agreement.',
+ilpac:'Institutional liquidity map: pivot-cluster heatmap, auto trendlines with breaks, and FOMO (exhaustion) candle flags.',
+po3:'Power of Three: accumulation range, manipulation sweep and distribution entry for each higher-timeframe candle, with targets.',
+liqd:'Liquidity depth: volume-at-price profile anchored to the last bar, reaction zones and buy/sell-side liquidity pools (BSL/SSL).',
+aie:'AI Edge: a logistic-regression model that learns online from the loaded candles and prints Long/Short with its own probability and measured accuracy.',
+zeno:'Zeno trend system: adaptive supertrend entries, pullback adds, trailing exit and take-profit with a live win-rate and net-R tracker.',
+sbf:'Order-flow proxy pane: candle delta, rolling buy/sell pressure, daily cumulative delta and stacked-imbalance dots. Uses range when a feed has no volume.',
+td:'DeMark 9-13: TD Setup 1-9 with perfection, Countdown to 13 with qualifier, and TDST support/resistance for trend exhaustion.',
+tsp:'Pattern suite: auto-detects triangles, wedges, channels and ranges from zigzag pivots and flags the breakout bar.',
+harm:'Harmonic scanner: Gartley, Bat, Butterfly and Crab (XABCD) with Fibonacci tolerance, PRZ zone, targets and stop.',
+zei:'Zeiierman-style suite: range-filter trend, squeeze momentum, channel breakouts and reversal flags combined with a bias table.',
+bbl:'Volume behaviour: volume-weighted supertrend, value-area profile (POC/VAH/VAL) and high-volume pivot liquidity levels.',
+wick:'Wick Hunter: liquidity sweeps with long rejection wicks and false breakouts of the N-bar range, with a forward hit-rate readout.',
+ltp:'TrendPro: EMA ribbon with ADX strength, trend-change flags and pullback continuation signals.',
+bba:'Arsenal: EMA ribbon, MACD, RSI, stochastic and candle confluence scored 0-5 for scalps, plus stoch/RSI reversal flags.',
+zeT:'Zeiierman Trend: range-filter band that only moves when price travels beyond normal noise. Colour = trend, flips = signals.',
+zeM:'Zeiierman Momentum: squeeze momentum histogram (linear regression) with compression dots: red = coiling, green = released.',
+zeR:'Zeiierman Reversal: Bollinger extreme + RSI exhaustion + rejection candle, flagged with a divergence bonus.',
+cpt:'ChartPrime-style trend channels: pivot channels with parallel opposite extreme, close breaks and wick (liquidity) breaks.',
+aab:'AlgoAlpha-style breakout channels: volatility-compression boxes and the breakout that ends them.',
+flx:'Flux-style liquidity sweeps and breaker blocks (optional FVG).',
+pip:'Hull trend with hysteresis, ATR trailing stop and a running pip tracker.',
+lcn:'Lorentzian k-NN classifier of the next-bars direction with volatility, ADX and EMA filters.',
+smc:'Full Smart Money Concepts: swing + internal structure, order blocks, EQH/EQL, FVG and premium/discount zones.',
+st:'Supertrend with optional fill and trend-flip signals.',bot:'Ten-model AI Bot vote shown as a score histogram.',
+sma:'Simple moving average.',ema:'Exponential moving average.',wma:'Weighted moving average.',bb:'Bollinger Bands: volatility envelope around a mean.',kc:'Keltner Channel: ATR envelope around an EMA.',don:'Donchian Channel: highest high / lowest low.',vwap:'Daily-reset volume-weighted average price.',psar:'Parabolic SAR trailing dots.',ichi:'Ichimoku cloud.',vol:'Traded volume.',rsi:'Relative Strength Index with smoothing MA and limits.',macd:'MACD histogram and signal.',sto:'Stochastic oscillator.',cci:'Commodity Channel Index.',wpr:'Williams %R.',atr:'Average True Range (volatility).',adx:'ADX / DMI trend strength.',obv:'On-balance volume.',mfi:'Money Flow Index.',roc:'Rate of change.',mom:'Momentum.',ao:'Awesome Oscillator.',cmf:'Chaikin Money Flow.',aroon:'Aroon trend timing.',hma:'Hull moving average (low lag).',srsi:'Stochastic RSI.',trix:'Triple-smoothed EMA rate of change.'};
+const PREM_ORDER=['lux','pac','mcb','orc','mdp','ssa','ilpac','po3','liqd','aie','zeno','sbf','td','tsp','harm','zei','bbl','wick','ltp','bba','zeT','zeM','zeR'];
+
+Object.assign(IND,{
+/* 2 */pac:{n:'Price Action Concepts (LuxAlgo-style)',o:1,p:[],set:1,grp:1,
+ ro:{sw:15,ob:1,obn:4,fvg:1,fvn:6,sweep:1,pl:5,look:120,eq:1,mit:'close',bu:BULL,be:BEAR},
+ sch:[['h','Structure'],['sw','Swing length','n',3,100],['mit','Order block mitigation','s',[['close','Close'],['wick','High / Low']]],['h','Order blocks & imbalance'],['ob','Order blocks','k'],['obn','Max boxes per side','n',1,15],['fvg','Fair value gaps','k'],['fvn','Max FVGs shown','n',1,20],['h','Liquidity'],['sweep','Liquidity sweeps','k'],['pl','Sweep pivot length','n',2,20],['look','Sweep look-ahead (bars)','n',10,500,10],['eq','Equal highs / lows','k'],['h','Colours'],['bu','Bullish','c'],['be','Bearish','c']],
+ f:(d,_,a)=>{const o=OPT(a),n=d.length;if(n<o.sw*3+10)return[];const at=rma(tr(d),200),S=structure(d,o.sw,at,o.mit),zs=[],sg=[],mk=[];
+  TL2(S.brk,40).forEach(b=>{const ch=b.tag=='CHoCH';sg.push({a:b.a,b:b.b,y:b.y,c:b.bull?o.bu:o.be,dash:ch?0:1,w:ch?1.8:1.1,l:b.tag});if(ch)mk.push(b.bull?{i:b.b,y:d[b.b].l,k:'u',c:o.bu,l:'CHoCH'}:{i:b.b,y:d[b.b].h,k:'d',c:o.be,l:'CHoCH'})});
+  if(o.ob)['1','0'].forEach(sd2=>TL2(S.obs.filter(z=>z.m<0&&String(z.bull)==sd2),o.obn).forEach(z=>zs.push({a:z.a,b:null,hi:z.hi,lo:z.lo,c:z.bull?o.bu:o.be,al:.22,bd:1,l:'OB'})));
+  if(o.fvg)TL2(fvgs(d).filter(f=>f.m<0),o.fvn).forEach(f=>zs.push({a:f.a,b:null,hi:f.hi,lo:f.lo,c:f.bull?o.bu:o.be,al:.12,bd:0,l:'FVG'}));
+  if(o.sweep){const{ph,pl}=pivots(d,o.pl,o.pl);
+   for(const p of ph)for(let k=p.c+1;k<=Math.min(n-1,p.i+o.look);k++){const x=d[k];if(x.c>p.p)break;if(x.h>p.p){sg.push({a:p.i,b:k,y:p.p,c:o.be,dash:2,w:1,l:'Sweep'});mk.push({i:k,y:x.h,k:'d',c:o.be,l:'Sweep',al:1});break}}
+   for(const p of pl)for(let k=p.c+1;k<=Math.min(n-1,p.i+o.look);k++){const x=d[k];if(x.c<p.p)break;if(x.l<p.p){sg.push({a:p.i,b:k,y:p.p,c:o.bu,dash:2,w:1,l:'Sweep'});mk.push({i:k,y:x.l,k:'u',c:o.bu,l:'Sweep',al:1});break}}}
+  if(o.eq){const pv=structure(d,3,at,o.mit).pv;let ph=null,pl=null;for(const p of pv){const tol=.1*at[Math.min(n-1,p.c)];if(p.h){if(ph&&Math.abs(p.p-ph.p)<tol)sg.push({a:ph.i,b:p.i,y:ph.p,y2:p.p,c:o.be,dash:1,w:1,l:'EQH'});ph=p}else{if(pl&&Math.abs(p.p-pl.p)<tol)sg.push({a:pl.i,b:p.i,y:pl.p,y2:p.p,c:o.bu,dash:1,w:1,l:'EQL'});pl=p}}}
+  const lb=S.brk[S.brk.length-1];
+  return[GX('z',zs),GX('seg',TL2(sg,70)),GX('m',TL2(mk,160)),GX('tab',{t:'Price Action Concepts',r:[['Structure',S.trend>0?'Bullish':S.trend<0?'Bearish':'–',S.trend>0?o.bu:S.trend<0?o.be:GREY],['Last break',lb?lb.tag+' '+(lb.bull?'up':'down')+' · '+(n-1-lb.b)+' bars ago':'–',lb?(lb.bull?o.bu:o.be):GREY],['Open order blocks',String(S.obs.filter(z=>z.m<0).length),GREY]]})]}},
+
+/* 4 */orc:{n:'Oracle Pro (ChartPrime-style)',o:1,p:[],set:1,grp:1,
+ ro:{ln:30,er:10,thr:.58,fill:1,bu:BULL,be:BEAR},
+ sch:[['h','Model'],['ln','Regression length','n',10,200],['er','Adaptive MA efficiency length','n',4,60],['thr','Flip probability','n',.5,.9,.01],['h','Display'],['fill','Fill between trend and price','k'],['h','Colours'],['bu','Up','c'],['be','Down','c']],
+ f:(d,_,a)=>{const o=OPT(a),n=d.length;if(n<o.ln*2)return[];const c=C(d),k=kama(c,o.er),at=rma(tr(d),14),lr=lrg(c,o.ln),rs=rsiA(c,14),e12=ema(c,12),e26=ema(c,26),mc=e12.map((v,i)=>v-e26[i]),mg=ema(mc,9),T=Math.tanh,
+  pr=new Array(n).fill(.5),dir=new Array(n).fill(0),mk=[];let dr=0;
+  for(let i=o.ln;i<n;i++){const A=at[i]||1e-9;if(k[i]!=k[i]||lr.sl[i]!=lr.sl[i])continue;
+   const z=1.5*T(lr.sl[i]*o.ln/(A*3))*Math.sqrt(lr.r2[i])+.6*T((c[i]-k[i])/A)+.5*T((rs[i]-50)/15)+.5*T((mc[i]-mg[i])/A*3);pr[i]=1/(1+Math.exp(-1.6*z));
+   let nd=dr;if(pr[i]>=o.thr&&c[i]>k[i])nd=1;else if(pr[i]<=1-o.thr&&c[i]<k[i])nd=-1;
+   if(nd!=dr&&dr!=0||(dr==0&&nd!=0)){mk.push(nd>0?{i,y:d[i].l,k:'u',c:o.bu,l:Math.round(pr[i]*100)+'%'}:{i,y:d[i].h,k:'d',c:o.be,l:Math.round((1-pr[i])*100)+'%'})}dr=nd;dir[i]=dr}
+  const U=k.map((v,i)=>dir[i]>0?v:N),Dn=k.map((v,i)=>dir[i]<0?v:N),out=[];if(o.fill)out.push(GX('poly',bandPolys(dir,k,c,o.bu,o.be)));out.push({...L(U,o.bu),w:2},{...L(Dn,o.be),w:2},GX('m',TL2(mk,200)));
+  const p=pr[n-1];out.push(GX('tab',{t:'Oracle',r:[['Trend',dir[n-1]>0?'Up':dir[n-1]<0?'Down':'Neutral',dir[n-1]>0?o.bu:dir[n-1]<0?o.be:GREY],['Up probability',Math.round(p*100)+'%',p>.5?o.bu:o.be],['Trend fit (R²)',lr.r2[n-1]==lr.r2[n-1]?lr.r2[n-1].toFixed(2):'–',GREY]]}));return out}},
+
+/* 5 */mdp:{n:'Market Dynamics Pro (ChartPrime-style)',o:1,p:[],set:1,grp:1,
+ ro:{pl:6,liq:3,imp:1.8,zn:3,lab:1,bu:BULL,be:BEAR},
+ sch:[['h','Structure'],['pl','Pivot length','n',2,30],['lab','HH / HL / LH / LL labels','k'],['h','Liquidity'],['liq','Unswept pools per side','n',0,8],['h','Zones'],['imp','Displacement candle (ATR ×)','n',1,4,.1],['zn','Zones per side','n',0,8],['h','Colours'],['bu','Bullish','c'],['be','Bearish','c']],
+ f:(d,_,a)=>{const o=OPT(a),n=d.length;if(n<60)return[];const at=rma(tr(d),14),{ph,pl}=pivots(d,o.pl,o.pl),ev=[...ph.map(p=>({...p,h:1})),...pl.map(p=>({...p,h:0}))].sort((x,y)=>x.c-y.c||x.i-y.i),mk=[],sg=[],zs=[],px=d[n-1].c;
+  let lh=null,ll2=null,th='',tl='';
+  for(const e of ev){if(e.h){th=lh?(e.p>lh.p?'HH':'LH'):th;if(o.lab&&lh&&e.i>n-500)mk.push({i:e.i,y:e.p,k:'t',c:th=='HH'?o.bu:o.be,l:th,dy:-8,mb:5});lh=e}else{tl=ll2?(e.p>ll2.p?'HL':'LL'):tl;if(o.lab&&ll2&&e.i>n-500)mk.push({i:e.i,y:e.p,k:'t',c:tl=='HL'?o.bu:o.be,l:tl,dy:14,mb:5});ll2=e}}
+  const un=[];for(const e of ev){let sw=0;for(let k=e.c+1;k<n;k++){if(e.h?d[k].h>e.p:d[k].l<e.p){sw=1;break}}if(!sw)un.push(e)}
+  const up=un.filter(e=>e.h&&e.p>px).sort((x,y)=>x.p-y.p).slice(0,o.liq),dn=un.filter(e=>!e.h&&e.p<px).sort((x,y)=>y.p-x.p).slice(0,o.liq);
+  up.forEach(e=>sg.push({a:e.i,b:null,y:e.p,c:o.be,dash:1,w:1,l:'Liquidity'}));dn.forEach(e=>sg.push({a:e.i,b:null,y:e.p,c:o.bu,dash:1,w:1,l:'Liquidity'}));
+  const Z={b:[],s:[]};for(let i=Math.max(2,n-800);i<n;i++){const x=d[i],b=Math.abs(x.c-x.o),A=at[i-1];if(!(A>0)||b<o.imp*A)continue;const p=d[i-1];
+   if(x.c>x.o&&p.c<p.o){let mit=null;for(let k=i+1;k<n;k++)if(d[k].c<p.l){mit=k;break}if(mit==null)Z.b.push({a:i-1,hi:Math.max(p.o,p.c),lo:p.l})}
+   else if(x.c<x.o&&p.c>p.o){let mit=null;for(let k=i+1;k<n;k++)if(d[k].c>p.h){mit=k;break}if(mit==null)Z.s.push({a:i-1,hi:p.h,lo:Math.min(p.o,p.c)})}}
+  tail(Z.b,o.zn).forEach(z=>zs.push({a:z.a,b:null,hi:z.hi,lo:z.lo,c:o.bu,al:.17,bd:1,l:'Demand'}));tail(Z.s,o.zn).forEach(z=>zs.push({a:z.a,b:null,hi:z.hi,lo:z.lo,c:o.be,al:.17,bd:1,l:'Supply'}));
+  const st=(th=='HH'&&tl=='HL')?'Uptrend (HH + HL)':(th=='LH'&&tl=='LL')?'Downtrend (LH + LL)':'Transition / range';
+  return[GX('z',zs),GX('seg',sg),GX('m',mk),GX('tab',{t:'Market Dynamics',r:[['Structure',st,st[0]=='U'?o.bu:st[0]=='D'?o.be:GREY],['Pools above / below',up.length+' / '+dn.length,GREY],['Zones demand / supply',Z.b.length+' / '+Z.s.length,GREY]]})]}},
+
+/* 6 */ssa:{n:'Smart Signals Assistant (AlgoAlpha-style)',o:1,p:[],set:1,grp:1,
+ ro:{er:14,ln:10,mul:2.6,str:2,adx:18,trail:1,fill:1,bu:BULL,be:BEAR},
+ sch:[['h','Trend engine'],['er','Adaptive MA length','n',4,60],['ln','ATR length','n',2,60],['mul','Band width (ATR ×)','n',.5,8,.1],['h','Signals'],['str','Minimum strength (stars)','n',0,4],['adx','ADX filter level','n',0,50],['h','Display'],['trail','Show trailing line','k'],['fill','Fill between line and price','k'],['h','Colours'],['bu','Bullish','c'],['be','Bearish','c']],
+ f:(d,_,a)=>{const o=OPT(a),n=d.length;if(n<80)return[];const c=C(d),at=rma(tr(d),o.ln),b=kama(d.map(x=>(x.h+x.l)/2),o.er),S=stLine(b,at,o.mul,c),rs=rsiA(c,14),e12=ema(c,12),e26=ema(c,26),mc=e12.map((v,i)=>v-e26[i]),mg=ema(mc,9),e50=ema(c,50),ax=IND.adx.f(d,[14])[0].d,mk=[];let nS=0,ls=null;
+  for(let i=2;i<n;i++){const dr=S.dir[i];if(!dr||dr==S.dir[i-1]||!S.dir[i-1])continue;const up=dr>0,x=d[i];
+   let st=(up?rs[i]>50:rs[i]<50)?1:0;st+=(up?mc[i]>mg[i]:mc[i]<mg[i])?1:0;st+=(ax[i]>=o.adx)?1:0;st+=(up?c[i]>e50[i]:c[i]<e50[i])?1:0;
+   if(st<o.str){mk.push({i,y:up?x.l:x.h,k:up?'u':'d',c:up?o.bu:o.be,l:'',al:.35});continue}
+   nS++;ls={i,up,st};mk.push({i,y:up?x.l:x.h,k:up?'u':'d',c:up?o.bu:o.be,l:(up?'Buy ':'Sell ')+STAR[st]})}
+  const U=S.line.map((v,i)=>S.dir[i]>0?v:N),Dn=S.line.map((v,i)=>S.dir[i]<0?v:N),out=[];
+  if(o.fill)out.push(GX('poly',bandPolys(S.dir,S.line,c,o.bu,o.be)));if(o.trail)out.push({...L(U,o.bu),w:2},{...L(Dn,o.be),w:2});out.push(GX('m',TL2(mk,200)));
+  out.push(GX('tab',{t:'Smart Signals',r:[['Trend',S.dir[n-1]>0?'Bullish':'Bearish',S.dir[n-1]>0?o.bu:o.be],['Last signal',ls?(ls.up?'Buy ':'Sell ')+STAR[ls.st]+' · '+(n-1-ls.i)+' bars':'–',ls?(ls.up?o.bu:o.be):GREY],['RSI / ADX',rs[n-1].toFixed(0)+' / '+(ax[n-1]==ax[n-1]?ax[n-1].toFixed(0):'–'),GREY]]}));return out}},
+
+/* 7 */ilpac:{n:'Institutional Liquidity & PA Concepts (AlgoAlpha-style)',o:1,p:[],set:1,grp:1,
+ ro:{pl:6,look:250,min:2,heat:1,tl:1,fomo:1,fk:2.2,ext:12,bu:BULL,be:BEAR},
+ sch:[['h','Liquidity heatmap'],['heat','Show heatmap','k'],['look','Lookback (bars)','n',50,1000,10],['pl','Pivot length','n',2,20],['min','Min pivots per level','n',2,6],['h','Trendlines'],['tl','Show trendlines','k'],['ext','Project forward (bars)','n',0,100],['h','FOMO'],['fomo','Mark FOMO candles','k'],['fk','FOMO range (ATR ×)','n',1,5,.1],['h','Colours'],['bu','Support / buy side','c'],['be','Resistance / sell side','c']],
+ f:(d,_,a)=>{const o=OPT(a),n=d.length;if(n<o.pl*4+20)return[];const at=rma(tr(d),14),{ph,pl}=pivots(d,o.pl,o.pl),from=Math.max(0,n-o.look),zs=[],sg=[],mk=[],px=d[n-1].c;let above=N,below=N;
+  if(o.heat){const piv=[...ph,...pl].filter(p=>p.i>=from).sort((x,y)=>x.p-y.p),tol=(at[n-1]||1e-9)*.35;let k=0;
+   while(k<piv.length){let j=k;while(j+1<piv.length&&piv[j+1].p-piv[j].p<=tol&&piv[j+1].p-piv[k].p<=2*tol)j++;const cnt=j-k+1;
+    if(cnt>=o.min){const mid=(piv[k].p+piv[j].p)/2,ai=Math.min(...piv.slice(k,j+1).map(q=>q.i));zs.push({a:ai,b:null,hi:piv[j].p+tol*.3,lo:piv[k].p-tol*.3,c:mid>px?o.be:o.bu,al:Math.min(.34,.07+.05*cnt),l:cnt+'x'});if(mid>px&&(above!=above||mid<above))above=mid;if(mid<px&&(below!=below||mid>below))below=mid}k=j+1}}
+  if(o.tl){const lines=[[ph,1],[pl,0]];lines.forEach(([P,h])=>{const q=P.filter(p=>p.i>=from);if(q.length<2)return;const p1=q[q.length-2],p2=q[q.length-1];if(h?p2.p>=p1.p:p2.p<=p1.p)return;const s=(p2.p-p1.p)/(p2.i-p1.i);let br=-1;
+   for(let k=p2.c+1;k<n;k++){const ln=p1.p+s*(k-p1.i);if(h?d[k].c>ln+.1*at[k]:d[k].c<ln-.1*at[k]){br=k;break}}
+   const e=br>=0?br:n-1+o.ext;sg.push({a:p1.i,b:e,y:p1.p,y2:p1.p+s*(e-p1.i),c:h?o.be:o.bu,w:1.5,dash:br>=0?1:0,l:h?'Resistance TL':'Support TL'});
+   if(br>=0)mk.push(h?{i:br,y:d[br].l,k:'u',c:o.bu,l:'TL break'}:{i:br,y:d[br].h,k:'d',c:o.be,l:'TL break'})})}
+  if(o.fomo){const e20=ema(C(d),20);for(let i=Math.max(25,n-500);i<n;i++){const x=d[i],A=at[i-1];if(!(A>0))continue;if((x.h-x.l)>=o.fk*A&&Math.abs(x.c-e20[i])>1.5*A){const up=clv(x)>.55&&x.c>e20[i],dn=clv(x)<-.55&&x.c<e20[i];if(up||dn)mk.push({i,y:up?x.h:x.l,k:'t',c:GOLD,l:'FOMO',dy:up?-9:15,mb:5})}}}
+  return[GX('z',zs),GX('seg',sg),GX('m',TL2(mk,160)),GX('tab',{t:'Liquidity map',r:[['Nearest above',above==above?fp(above):'–',o.be],['Nearest below',below==below?fp(below):'–',o.bu]]})]}},
+
+/* 8 */po3:{n:'Power of Three (Toodegrees-style)',o:1,p:[],set:1,grp:1,
+ ro:{htf:86400,acc:30,per:5,lab:1,tp:1,bu:BULL,be:BEAR},
+ sch:[['h','Framework'],['htf','Higher-timeframe candle','s',[[3600,'1 hour'],[14400,'4 hours'],[86400,'1 day'],[604800,'1 week']]],['acc','Accumulation window (% of candle)','n',10,60],['per','Candles shown','n',1,15],['h','Display'],['lab','A / M / D labels','k'],['tp','Targets and stop','k'],['h','Colours'],['bu','Bullish','c'],['be','Bearish','c']],
+ f:(d,_,a)=>{const o=OPT(a),n=d.length;let HT=+o.htf;while(HT<tf*8&&HT<604800)HT=HT<14400?14400:HT<86400?86400:604800;if(n<30||HT<tf*8)return[];
+  const per=Math.ceil(HT/tf),ac=Math.max(3,Math.round(per*o.acc/100)),at=rma(tr(d),14),off=HT==604800?345600:0,P=[];let cur=null,pid=null;
+  for(let i=0;i<n;i++){const id=Math.floor((d[i].t-off)/HT);if(id!==pid){pid=id;cur={s:i,o:d[i].o,accH:-Infinity,accL:Infinity,accEnd:-1,sw:0,swI:-1,swX:0,sig:null};P.push(cur)}
+   const k=i-cur.s,x=d[i];
+   if(k<ac){if(x.h>cur.accH)cur.accH=x.h;if(x.l<cur.accL)cur.accL=x.l;if(k==ac-1)cur.accEnd=i;continue}
+   if(cur.accEnd<0||cur.sig)continue;const A=at[i]||(x.h-x.l)||1e-9;
+   if(!cur.sw){const up=x.h-cur.accH,dn=cur.accL-x.l;if(up>0.05*A&&up>=dn){cur.sw=1;cur.swI=i;cur.swX=x.h}else if(dn>0.05*A){cur.sw=-1;cur.swI=i;cur.swX=x.l}}
+   else{if(cur.sw>0&&x.h>cur.swX)cur.swX=x.h;if(cur.sw<0&&x.l<cur.swX)cur.swX=x.l}
+   if(cur.sw){if(cur.sw>0&&x.c<cur.accH)cur.sig={i,side:-1,e:x.c};else if(cur.sw<0&&x.c>cur.accL)cur.sig={i,side:1,e:x.c}}}
+  const zs=[],sg=[],mk=[];
+  tail(P,o.per).forEach(q=>{const e=q.s+per-1,rg=q.accH-q.accL;sg.push({a:q.s,b:e,y:q.o,c:GREY,dash:2,w:1,al:.8});
+   if(q.accEnd>=0){zs.push({a:q.s,b:q.accEnd,hi:q.accH,lo:q.accL,c:GOLD,al:.1,bd:1,dash:1,l:o.lab?'A':''});sg.push({a:q.accEnd,b:e,y:q.accH,c:GOLD,dash:1,w:1,al:.55},{a:q.accEnd,b:e,y:q.accL,c:GOLD,dash:1,w:1,al:.55})}
+   if(q.sw){mk.push({i:q.swI,y:q.swX,k:'t',c:GOLD,l:o.lab?'M':'',dy:q.sw>0?-6:14,fs:11,b:1})}
+   if(q.sig){const s=q.sig,up=s.side>0,c=up?o.bu:o.be;mk.push({i:s.i,y:up?d[s.i].l:d[s.i].h,k:up?'u':'d',c,l:'PO3 '+(up?'Buy':'Sell')});
+    if(o.lab)mk.push({i:Math.min(n-1,s.i+1),y:d[Math.min(n-1,s.i+1)].c,k:'t',c,l:'D',dy:up?-12:20,fs:11,b:1});
+    if(o.tp){const t1=up?q.accH:q.accL,t2=up?q.accH+rg:q.accL-rg;sg.push({a:s.i,b:e,y:q.swX,c:o.be,w:1,dash:1,l:'SL',lp:'e'},{a:s.i,b:e,y:t1,c:o.bu,w:1,dash:1,l:'TP1',lp:'e'},{a:s.i,b:e,y:t2,c:o.bu,w:1,dash:1,l:'TP2',lp:'e'})}}});
+  const q=P[P.length-1],ph=!q?'–':q.sig?'Distribution '+(q.sig.side>0?'up':'down'):q.sw?'Manipulation '+(q.sw>0?'high swept':'low swept'):q.accEnd>=0?'Waiting for sweep':'Accumulation';
+  return[GX('z',zs),GX('seg',sg),GX('m',TL2(mk,60)),GX('tab',{t:'Power of Three',r:[['Phase',ph,q&&q.sig?(q.sig.side>0?o.bu:o.be):GOLD],['Candle',HT==3600?'1h':HT==14400?'4h':HT==86400?'1d':'1w',GREY]]})]}},
+
+/* 9 */liqd:{n:'Liquidity Depth (Toodegrees-style)',o:1,p:[],set:1,grp:1,
+ ro:{look:300,nb:32,len:60,top:3,pools:3,bu:BULL,be:BEAR},
+ sch:[['h','Depth profile'],['look','Lookback (bars)','n',50,1000,10],['nb','Price bins','n',10,80],['len','Max bar length (candles)','n',10,150],['top','Reaction zones','n',0,8],['h','Liquidity pools'],['pools','Unswept pools per side','n',0,8],['h','Colours'],['bu','Buy-side depth (below price)','c'],['be','Sell-side depth (above price)','c']],
+ f:(d,_,a)=>{const o=OPT(a),n=d.length;if(n<40)return[];const from=Math.max(0,n-o.look),at=rma(tr(d),14),pv=pvol(d,at);let lo=Infinity,hi=-Infinity;for(let i=from;i<n;i++){if(d[i].l<lo)lo=d[i].l;if(d[i].h>hi)hi=d[i].h}if(!(hi>lo))return[];
+  const nb=o.nb,st=(hi-lo)/nb,bins=new Array(nb).fill(0),px=d[n-1].c,zs=[],sg=[];
+  for(let i=from;i<n;i++){const x=d[i],b0=Math.max(0,Math.floor((x.l-lo)/st)),b1=Math.min(nb-1,Math.floor((x.h-lo)/st)),w=pv[i]/(b1-b0+1);for(let b=b0;b<=b1;b++)bins[b]+=w}
+  const mx=Math.max(...bins)||1,rk=bins.map((v,b)=>[v,b]).sort((p,q)=>q[0]-p[0]).slice(0,o.top).map(q=>q[1]);
+  bins.forEach((v,b)=>{const Ln=Math.max(1,Math.round(o.len*v/mx)),mid=lo+(b+.5)*st,tp=rk.includes(b);zs.push({a:n-1-Ln,b:n-1,hi:lo+(b+1)*st,lo:lo+b*st+st*.07,c:mid>px?o.be:o.bu,al:tp?.34:.15,l:tp?'Reaction':''})});
+  const{ph,pl}=pivots(d,5,5),un=[...ph.map(p=>({...p,h:1})),...pl.map(p=>({...p,h:0}))].filter(p=>p.i>=from&&!d.slice(p.c+1).some(x=>p.h?x.h>p.p:x.l<p.p));
+  un.filter(p=>p.h&&p.p>px).sort((x,y)=>x.p-y.p).slice(0,o.pools).forEach(p=>sg.push({a:p.i,b:null,y:p.p,c:o.be,dash:1,w:1,l:'BSL'}));
+  un.filter(p=>!p.h&&p.p<px).sort((x,y)=>y.p-x.p).slice(0,o.pools).forEach(p=>sg.push({a:p.i,b:null,y:p.p,c:o.bu,dash:1,w:1,l:'SSL'}));
+  const top=rk[0]!=null?lo+(rk[0]+.5)*st:N;return[GX('z',zs),GX('seg',sg),GX('tab',{t:'Liquidity Depth',r:[['Deepest level',top==top?fp(top):'–',GOLD],['Price vs level',top==top?(px>top?'above':'below'):'–',GREY]]})]}},
+
+/* 10 */aie:{n:'AI Edge (online-learning signals)',o:1,p:[],set:1,grp:1,
+ ro:{hz:3,thr:.1,lr:.03,warm:150,bu:BULL,be:BEAR},
+ sch:[['h','Model'],['hz','Prediction horizon (bars)','n',1,12],['lr','Learning rate','n',.005,.15,.005],['warm','Warm-up bars before signals','n',60,500,10],['thr','Probability margin from 50%','n',.02,.4,.01],['h','Colours'],['bu','Long','c'],['be','Short','c']],
+ f:(d,_,a)=>{const o=OPT(a),n=d.length;if(n<o.warm+30)return[];const c=C(d),at=rma(tr(d),14),rs=rsiA(c,14),e9=ema(c,9),e21=ema(c,21),e50=ema(c,50),e12=ema(c,12),e26=ema(c,26),mc=e12.map((v,i)=>v-e26[i]),mg=ema(mc,9),m20=sma(c,20),s20=sd(c,20),T=Math.tanh,K=8,
+  fx=i=>{const A=at[i]||1e-9;return[T((rs[i]-50)/20),T((mc[i]-mg[i])/A*3),T((c[i]-e21[i])/A/2),T((e9[i]-e21[i])/A),T((c[i]-c[i-5])/A/2),T((c[i]-m20[i])/((s20[i]||1e-9)*2)),T((e21[i]-e50[i])/A/2),1]},
+  H=o.hz,w=new Array(K).fill(0),X=[],pr=new Array(n).fill(.5),sg=new Array(n).fill(0),mk=[];let st=0;
+  for(let i=55;i<n;i++){const x=X[i]=fx(i),j=i-H;
+   if(j>=55&&X[j]){const y=c[i]>c[j]?1:c[i]<c[j]?0:.5;let z=0;for(let k=0;k<K;k++)z+=X[j][k]*w[k];const g=(1/(1+Math.exp(-z))-y)*o.lr;for(let k=0;k<K;k++)w[k]-=g*X[j][k]+o.lr*.002*w[k]}
+   let z=0;for(let k=0;k<K;k++)z+=x[k]*w[k];const p=pr[i]=1/(1+Math.exp(-z));
+   if(i>=o.warm){const s=p>.5+o.thr?1:p<.5-o.thr?-1:st;if(s!=st&&s!=0)mk.push(s>0?{i,y:d[i].l,k:'u',c:o.bu,l:Math.round(p*100)+'%'}:{i,y:d[i].h,k:'d',c:o.be,l:Math.round((1-p)*100)+'%'});st=s;sg[i]=s}}
+  let ok=0,tt=0;for(let k=o.warm;k<n-H;k++){if(!sg[k])continue;tt++;if((c[k+H]-c[k])*sg[k]>0)ok++}
+  const acc=tt?ok/tt:0,ci=tt?1.96*Math.sqrt(.25/tt):0,cl=sg[n-1];
+  return[GX('m',TL2(mk,200)),GX('tab',{t:'AI Edge',r:[['Signal',cl>0?'Long':cl<0?'Short':'Flat',cl>0?o.bu:cl<0?o.be:GREY],['Probability up',Math.round(pr[n-1]*100)+'%',pr[n-1]>.5?o.bu:o.be],['Measured accuracy (+'+H+')',tt?Math.round(acc*100)+'% ±'+Math.round(ci*100)+' of '+tt:'–',acc-ci>.5?o.bu:GREY]]})]}},
+
+/* 11 */zeno:{n:'Zeno Algo (Quantum Algo-style)',o:1,p:[],set:1,grp:1,
+ ro:{er:20,mul:2.4,rr:2,pb:1,maxa:2,bu:BULL,be:BEAR},
+ sch:[['h','Trend'],['er','Adaptive MA length','n',5,80],['mul','Band width (ATR ×)','n',.8,6,.1],['h','Trade management'],['rr','Take profit (R)','n',.5,8,.1],['pb','Pullback adds','k'],['maxa','Max adds per trend','n',0,5],['h','Colours'],['bu','Long','c'],['be','Short','c']],
+ f:(d,_,a)=>{const o=OPT(a),n=d.length;if(n<80)return[];const c=C(d),at=rma(tr(d),14),k=kama(d.map(x=>(x.h+x.l)/2),o.er),S=stLine(k,at,o.mul,c),rs=rsiA(c,9),mk=[];let pos=null,adds=0,cl=0,w=0,net=0;
+  const ext=(i,x,why)=>{const r=(x-pos.e)*pos.side/pos.dist;cl++;if(r>0)w++;net+=r;mk.push({i,y:x,k:'p',c:r>=0?o.bu:o.be,l:(r>=0?'+':'')+r.toFixed(1)+'R '+why,dy:pos.side>0?-14:14});pos=null};
+  for(let i=1;i<n;i++){const dr=S.dir[i];if(!dr)continue;
+   if(pos&&(pos.side>0?d[i].h>=pos.tp:d[i].l<=pos.tp)&&i>pos.j)ext(i,pos.tp,'TP');
+   if(dr!=S.dir[i-1]&&S.dir[i-1]){if(pos)ext(i,c[i],'Flip');pos={side:dr,e:c[i],dist:o.mul*at[i],tp:c[i]+dr*o.rr*o.mul*at[i],j:i};adds=0;mk.push({i,y:dr>0?d[i].l:d[i].h,k:dr>0?'u':'d',c:dr>0?o.bu:o.be,l:dr>0?'Buy':'Sell'})}
+   else if(o.pb&&adds<o.maxa&&dr>0&&rs[i-1]<45&&rs[i]>=45&&c[i]>k[i]||o.pb&&adds<o.maxa&&dr<0&&rs[i-1]>55&&rs[i]<=55&&c[i]<k[i]){adds++;mk.push({i,y:dr>0?d[i].l:d[i].h,k:dr>0?'u':'d',c:dr>0?o.bu:o.be,l:'Add',al:.55})}}
+  const U=S.line.map((v,i)=>S.dir[i]>0?v:N),Dn=S.line.map((v,i)=>S.dir[i]<0?v:N),op=pos?(c[n-1]-pos.e)*pos.side/pos.dist:0;
+  return[{...L(U,o.bu),w:2},{...L(Dn,o.be),w:2},GX('m',TL2(mk,220)),GX('tab',{t:'Zeno',r:[['Position',pos?(pos.side>0?'Long ':'Short ')+(op>=0?'+':'')+op.toFixed(1)+'R':'Flat',pos?(pos.side>0?o.bu:o.be):GREY],['Closed trades',cl?cl+' · '+Math.round(100*w/cl)+'% win':'–',GREY],['Net (R)',(net>=0?'+':'')+net.toFixed(1),net>=0?o.bu:o.be]]})]}},
+
+/* 12 */sbf:{n:'SubFlow Terminal (order-flow proxy)',p:[],set:1,grp:1,
+ ro:{len:20,imb:1.5,run:3,bu:BULL,be:BEAR},
+ sch:[['h','Flow'],['len','Pressure length','n',5,100],['h','Imbalance'],['imb','Strong bar volume (× average)','n',.8,4,.1],['run','Stacked bars','n',2,6],['h','Colours'],['bu','Buying','c'],['be','Selling','c']],
+ f:(d,_,a)=>{const o=OPT(a),n=d.length;if(n<o.len+5)return[];const at=rma(tr(d),14),v=pvol(d,at),dl=d.map((x,i)=>clv(x)*v[i]),av=sma(v,o.len),sD=sma(dl,o.len),sV=sma(v,o.len),ab=dl.map((q,i)=>av[i]>0?q/av[i]:N),pr=sD.map((q,i)=>sV[i]>0?q/sV[i]:N),cum=[],mk=[];
+  let day=-1,cs=0,mx=1e-9,run=0,rs2=0;
+  for(let i=0;i<n;i++){const dk=Math.floor(d[i].t/86400);if(dk!=day){day=dk;cs=0;mx=1e-9}cs+=dl[i];mx=Math.max(mx,Math.abs(cs));cum.push(cs/mx);
+   const strong=Math.abs(clv(d[i]))>=.5&&v[i]>=o.imb*(av[i]||1e9),sg=strong?Math.sign(clv(d[i])):0;if(sg&&sg==rs2)run++;else{run=sg?1:0;rs2=sg}
+   if(sg&&run==o.run)mk.push({i,y:sg*1.3,k:'o',c:sg>0?o.bu:o.be,r:3.6})}
+  return[{t:'h',d:ab.map(q=>q==q?Math.max(-1.5,Math.min(1.5,q)):N),cc:ab.map(q=>q>=0?o.bu+'99':o.be+'99')},{...L(pr,GOLD),w:1.6},{...L(cum,'#4aa3ff'),w:1.2},GX('m',TL2(mk,200))]},
+ post:a=>{a.rg=[-1.7,1.7];a.bands=[{v:0,c:GREY,d:'solid'},{v:.5,c:'#8c8c8c66',d:'dot'},{v:-.5,c:'#8c8c8c66',d:'dot'}]}},
+
+/* 13 */td:{n:'DeMARK 9-13 (TD Sequential)',o:1,p:[],set:1,grp:1,
+ ro:{su:1,cd:1,tdst:1,perf:1,bu:BULL,be:BEAR},
+ sch:[['h','Display'],['su','Setup 1-9 numbers','k'],['cd','Countdown to 13','k'],['tdst','TDST lines','k'],['perf','Mark perfected setups (9+)','k'],['h','Colours'],['bu','Buy exhaustion','c'],['be','Sell exhaustion','c']],
+ f:(d,_,a)=>{const o=OPT(a),n=d.length;if(n<30)return[];const c=C(d),mk=[],sg=[];let bc=0,sc=0,bs=[],ss=[];const cdB={on:0,n:0,c8:N,tdst:N},cdS={on:0,n:0,c8:N,tdst:N};let last9=null;
+  const num=(i,t,up,lvl,col,mb,bold)=>mk.push({i,y:up?d[i].h:d[i].l,k:'t',c:col,l:t,dy:up?-9-lvl*11:15+lvl*11,mb,b:bold,fs:bold?11:9});
+  for(let i=5;i<n;i++){
+   /* setup */
+   if(c[i]<c[i-4]){if(bc==0){if(c[i-1]>=c[i-5]){bc=1;bs=[i]}}else{bc++;if(bc<=9)bs.push(i)}}else{bc=0;bs=[]}
+   if(c[i]>c[i-4]){if(sc==0){if(c[i-1]<=c[i-5]){sc=1;ss=[i]}}else{sc++;if(sc<=9)ss.push(i)}}else{sc=0;ss=[]}
+   if(o.su){if(bc>=1&&bc<=9)num(i,String(bc),0,0,bc==9?o.bu:o.bu+'aa',bc==9?0:9,bc==9);if(sc>=1&&sc<=9)num(i,String(sc),1,0,sc==9?o.be:o.be+'aa',sc==9?0:9,sc==9)}
+   if(bc==9){const b8=d[bs[7]],b9=d[i],pf=Math.min(b8.l,b9.l)<Math.min(d[bs[5]].l,d[bs[6]].l);const tdst=Math.max(...bs.map(j=>d[j].h));
+    mk.push({i,y:d[i].l,k:'u',c:o.bu,l:'9'+(o.perf&&pf?'+':''),al:1,off:o.su?22:8});
+    if(o.tdst)sg.push({a:i,b:Math.min(n-1,i+80),y:tdst,c:o.be,dash:1,w:1,l:'TDST'});
+    Object.assign(cdB,{on:1,n:0,c8:N,tdst});cdS.on=0;last9='b'}
+   if(sc==9){const s8=d[ss[7]],s9=d[i],pf=Math.max(s8.h,s9.h)>Math.max(d[ss[5]].h,d[ss[6]].h);const tdst=Math.min(...ss.map(j=>d[j].l));
+    mk.push({i,y:d[i].h,k:'d',c:o.be,l:'9'+(o.perf&&pf?'+':''),al:1,off:o.su?22:8});
+    if(o.tdst)sg.push({a:i,b:Math.min(n-1,i+80),y:tdst,c:o.bu,dash:1,w:1,l:'TDST'});
+    Object.assign(cdS,{on:1,n:0,c8:N,tdst});cdB.on=0;last9='s'}
+   /* countdown */
+   if(cdB.on){if(c[i]>cdB.tdst){cdB.on=0}else if(c[i]<=d[i-2].l&&i>0){const done=(cdB.n<12)||(cdB.n==12&&d[i].l<=cdB.c8);
+     if(cdB.n<12){cdB.n++;if(cdB.n==8)cdB.c8=c[i];if(o.cd&&cdB.n>=8)num(i,String(cdB.n),0,1,GOLD,0,0)}
+     else if(d[i].l<=cdB.c8){cdB.n=13;cdB.on=0;mk.push({i,y:d[i].l,k:'u',c:o.bu,l:'13',al:1,off:o.su?34:8})}else if(o.cd)num(i,'+',0,1,GOLD,0,0)}}
+   if(cdS.on){if(c[i]<cdS.tdst){cdS.on=0}else if(c[i]>=d[i-2].h){
+     if(cdS.n<12){cdS.n++;if(cdS.n==8)cdS.c8=c[i];if(o.cd&&cdS.n>=8)num(i,String(cdS.n),1,1,GOLD,0,0)}
+     else if(d[i].h>=cdS.c8){cdS.n=13;cdS.on=0;mk.push({i,y:d[i].h,k:'d',c:o.be,l:'13',al:1,off:o.su?34:8})}else if(o.cd)num(i,'+',1,1,GOLD,0,0)}}}
+  return[GX('seg',sg),GX('m',TL2(mk,700)),GX('tab',{t:'DeMark 9-13',r:[['Buy setup / countdown',(bc>0?bc+'/9':'–')+' · '+(cdB.on?cdB.n+'/13':'–'),bc>0||cdB.on?o.bu:GREY],['Sell setup / countdown',(sc>0?sc+'/9':'–')+' · '+(cdS.on?cdS.n+'/13':'–'),sc>0||cdS.on?o.be:GREY]]})]}},
+
+/* 14 */tsp:{n:'Pattern Suite (Trendoscope-style)',o:1,p:[],set:1,grp:1,
+ ro:{dev:2.2,tol:.9,fl:.16,keep:4,brk:1,bu:BULL,be:BEAR},
+ sch:[['h','Detection'],['dev','Zigzag deviation (ATR ×)','n',1,6,.1],['tol','Pivot-to-line tolerance (ATR ×)','n',.2,2,.1],['fl','Flat slope threshold','n',.05,.4,.01],['keep','Patterns shown','n',1,10],['brk','Mark breakouts','k'],['h','Colours'],['bu','Bullish bias','c'],['be','Bearish bias','c']],
+ f:(d,_,a)=>{const o=OPT(a),n=d.length;if(n<80)return[];const at=rma(tr(d),14),{P}=zz(d,o.dev,at);if(P.length<6)return[];const pats=[];
+  for(let k=5;k<P.length;k++){const w=P.slice(k-5,k+1),hs=w.filter(p=>p.h),ls=w.filter(p=>!p.h);if(hs.length!=3||ls.length!=3)continue;const A=at[Math.min(n-1,w[5].c)]||1e-9;
+   const sU=(hs[2].p-hs[0].p)/(hs[2].i-hs[0].i),sL=(ls[2].p-ls[0].p)/(ls[2].i-ls[0].i),up=x=>hs[0].p+sU*(x-hs[0].i),lw=x=>ls[0].p+sL*(x-ls[0].i);
+   if(Math.abs(hs[1].p-up(hs[1].i))>o.tol*A||Math.abs(ls[1].p-lw(ls[1].i))>o.tol*A)continue;
+   const a0=Math.min(hs[0].i,ls[0].i),a1=Math.max(hs[2].i,ls[2].i),span=a1-a0,H0=up(a0)-lw(a0),H1=up(a1)-lw(a1);if(!(H0>0)||!(H1>0)||span<8)continue;
+   const rU=sU*span/H0,rL=sL*span/H0,fl=o.fl,flU=Math.abs(rU)<fl,flL=Math.abs(rL)<fl;let nm='',bias=0;
+   if(flU&&flL){nm='Range'}else if(rU<-fl&&rL>fl){nm='Symmetrical Triangle'}else if(flU&&rL>fl){nm='Ascending Triangle';bias=1}else if(rU<-fl&&flL){nm='Descending Triangle';bias=-1}
+   else if(rU>fl&&rL>fl){nm=rL>rU*1.25?'Rising Wedge':Math.abs(rU-rL)<.35*Math.max(rU,rL)?'Ascending Channel':'Broadening Rising';bias=nm=='Rising Wedge'?-1:nm=='Ascending Channel'?1:0}
+   else if(rU<-fl&&rL<-fl){nm=-rU>-rL*1.25?'Falling Wedge':Math.abs(rU-rL)<.35*Math.max(-rU,-rL)?'Descending Channel':'Broadening Falling';bias=nm=='Falling Wedge'?1:nm=='Descending Channel'?-1:0}
+   else continue;
+   const cap=Math.min(n-1,a1+Math.round(span*1.2));let br=-1,bd=0;for(let j=w[5].c+1;j<=cap;j++){if(d[j].c>up(j)+.1*A){br=j;bd=1;break}if(d[j].c<lw(j)-.1*A){br=j;bd=-1;break}}
+   const e=br>=0?br:cap,pt={nm,bias,a:a0,e,y0:up(a0),y1:up(e),z0:lw(a0),z1:lw(e),br,bd,ap:w[5].c};
+   const pv=pats[pats.length-1];if(pv&&pt.a<pv.ap&&pv.br<0)pats[pats.length-1]=pt;else if(!pv||pt.a>=pv.ap||pv.br>=0&&pt.a>pv.a+3)pats.push(pt)}
+  const sg=[],mk=[];tail(pats,o.keep).forEach(p=>{const c=p.bias>0?o.bu:p.bias<0?o.be:GOLD;sg.push({a:p.a,b:p.e,y:p.y0,y2:p.y1,c,w:1.5,l:p.nm},{a:p.a,b:p.e,y:p.z0,y2:p.z1,c,w:1.5});
+   if(o.brk&&p.br>=0)mk.push(p.bd>0?{i:p.br,y:d[p.br].l,k:'u',c:o.bu,l:'Break'}:{i:p.br,y:d[p.br].h,k:'d',c:o.be,l:'Break'})});
+  const lp=pats[pats.length-1];return[GX('seg',sg),GX('m',mk),GX('tab',{t:'Pattern Suite',r:lp?[['Latest',lp.nm,lp.bias>0?o.bu:lp.bias<0?o.be:GOLD],['Status',lp.br>=0?'Broke '+(lp.bd>0?'up':'down')+' · '+(n-1-lp.br)+' bars ago':'Forming',GREY]]:[['Latest','none found',GREY]]})]}},
+
+/* 15 */harm:{n:'Harmonic Elite (Hapharmonic-style)',o:1,p:[],set:1,grp:1,
+ ro:{dev:2.4,tol:6,min:3,keep:3,prz:1,gar:1,bat:1,but:1,crab:1,bu:BULL,be:BEAR},
+ sch:[['h','Detection'],['dev','Zigzag deviation (ATR ×)','n',1,6,.1],['tol','Ratio tolerance %','n',1,15,.5],['min','Min XA size (ATR ×)','n',1,12,.5],['keep','Patterns shown','n',1,8],['h','Patterns'],['gar','Gartley','k'],['bat','Bat','k'],['but','Butterfly','k'],['crab','Crab','k'],['h','Display'],['prz','PRZ zone, targets and stop','k'],['h','Colours'],['bu','Bullish','c'],['be','Bearish','c']],
+ f:(d,_,a)=>{const o=OPT(a),n=d.length;if(n<80)return[];const at=rma(tr(d),14),{P}=zz(d,o.dev,at);if(P.length<5)return[];const t=o.tol/100,ink=(v,r)=>v>=r[0]*(1-t)&&v<=r[1]*(1+t);
+  const DEF=[['Gartley',o.gar,[.618,.618],[.382,.886],[1.13,1.618],[.786,.786]],['Bat',o.bat,[.382,.5],[.382,.886],[1.618,2.618],[.886,.886]],['Butterfly',o.but,[.786,.786],[.382,.886],[1.618,2.24],[1.272,1.618]],['Crab',o.crab,[.382,.618],[.382,.886],[2.24,3.618],[1.618,1.618]]],found=[];
+  for(let k=4;k<P.length;k++){const X=P[k-4],A=P[k-3],B=P[k-2],C2=P[k-1],D=P[k],XA=Math.abs(A.p-X.p),AB=Math.abs(B.p-A.p),BC=Math.abs(C2.p-B.p),CD=Math.abs(D.p-C2.p),AD=Math.abs(D.p-A.p);if(!(XA>0&&AB>0&&BC>0))continue;
+   if(XA<o.min*(at[Math.min(n-1,D.c)]||1e-9))continue;const r1=AB/XA,r2=BC/AB,r3=CD/BC,r4=AD/XA;
+   for(const[nm,on,a1,a2,a3,a4]of DEF){if(!on)continue;if(ink(r1,a1)&&ink(r2,a2)&&ink(r3,a3)&&ink(r4,a4)){found.push({nm,X,A,B,C:C2,D,bull:!D.h,XA,AD});break}}}
+  const sg=[],zs=[],mk=[];tail(found,o.keep).forEach(q=>{const c=q.bull?o.bu:o.be,P5=[q.X,q.A,q.B,q.C,q.D];for(let j=0;j<4;j++)sg.push({a:P5[j].i,b:P5[j+1].i,y:P5[j].p,y2:P5[j+1].p,c,w:1.4,l:j==0?q.nm:''});
+   sg.push({a:q.X.i,b:q.B.i,y:q.X.p,y2:q.B.p,c,w:1,dash:2},{a:q.A.i,b:q.D.i,y:q.A.p,y2:q.D.p,c,w:1,dash:2});
+   const s=q.bull?1:-1,e=Math.min(n+30,q.D.c+40);
+   if(o.prz){zs.push({a:q.D.i-2,b:Math.min(n-1,q.D.c+10),hi:q.D.p+Math.abs(q.AD)*.06,lo:q.D.p-Math.abs(q.AD)*.06,c,al:.2,bd:1,l:'PRZ'});
+    sg.push({a:q.D.c,b:e,y:q.D.p+s*q.AD*.382,c:o.bu,dash:1,w:1,l:'TP1',lp:'e'},{a:q.D.c,b:e,y:q.D.p+s*q.AD*.618,c:o.bu,dash:1,w:1,l:'TP2',lp:'e'},{a:q.D.c,b:e,y:q.D.p-s*q.AD*.2,c:o.be,dash:1,w:1,l:'SL',lp:'e'})}
+   const ci=Math.min(n-1,q.D.c);mk.push({i:ci,y:q.bull?d[ci].l:d[ci].h,k:q.bull?'u':'d',c,l:q.nm})});
+  const lf=found[found.length-1];return[GX('z',zs),GX('seg',sg),GX('m',mk),GX('tab',{t:'Harmonic Elite',r:lf?[['Latest',(lf.bull?'Bullish ':'Bearish ')+lf.nm,lf.bull?o.bu:o.be],['Confirmed',(n-1-lf.D.c)+' bars ago',GREY],['Found in history',String(found.length),GREY]]:[['Latest','none found',GREY]]})]}},
+
+/* 16 */zei:{n:'Zeiierman Indicator Suite',o:1,p:[],set:1,grp:1,
+ ro:{tr:1,br:1,rv:1,per:20,mul:2.2,look:20,k:2.2,rsi:35,div:1,fill:0,bu:BULL,be:BEAR},
+ sch:[['h','Modules'],['tr','Trend (range filter)','k'],['br','Breakouts (with trend)','k'],['rv','Reversals','k'],['h','Trend'],['per','Filter length','n',5,100],['mul','Filter multiplier','n',.5,8,.1],['fill','Fill band','k'],['h','Breakout'],['look','Channel length','n',5,100],['h','Reversal'],['k','Band width (σ)','n',1.5,3.5,.1],['rsi','RSI exhaustion level','n',20,45],['div','Divergence bonus','k'],['h','Colours'],['bu','Bullish','c'],['be','Bearish','c']],
+ f:(d,_,a)=>{const o=OPT(a),n=d.length;if(n<o.per*3+10)return[];const T=zeTf(d,o),out=[],mk=[];
+  if(o.tr){const U=T.R.f.map((v,i)=>T.R.dir[i]>0?v:N),Dn=T.R.f.map((v,i)=>T.R.dir[i]<0?v:N);if(o.fill)out.push({t:'b',d:T.R.hi,e:T.R.lo,c:GREY});out.push({...L(U,o.bu),w:2},{...L(Dn,o.be),w:2});mk.push(...T.mk)}
+  if(o.br)mk.push(...zeBf(d,o,T.R.dir).mk);if(o.rv)mk.push(...zeRf(d,o).mk);
+  const sq=sqzM(d,20,2,1.5),dr=T.R.dir[n-1],mv=sq.v[n-1],mp=sq.v[n-2];out.push(GX('m',TL2(mk,260)),GX('tab',{t:'Zeiierman Suite',r:[['Trend',dr>0?'Bullish':dr<0?'Bearish':'–',dr>0?o.bu:dr<0?o.be:GREY],['Momentum',mv==mv?(mv>0?'Up':'Down')+(mv>mp?' rising':' fading'):'–',mv>0?o.bu:o.be],['Squeeze',sq.on[n-1]?'Coiling':'Released',sq.on[n-1]?GOLD:GREY]]}));return out}},
+
+/* 17 */bbl:{n:'BigBeluga Premium (volume suite)',o:1,p:[],set:1,grp:1,
+ ro:{vl:20,mul:2,look:200,nb:30,va:70,pk:5,vk:1.4,prof:1,hv:3,bu:BULL,be:BEAR},
+ sch:[['h','Volume trend'],['vl','VWMA length','n',5,100],['mul','Band width (ATR ×)','n',.5,6,.1],['h','Value area'],['prof','Show POC / value area','k'],['look','Profile lookback (bars)','n',50,1000,10],['nb','Price bins','n',10,80],['va','Value area %','n',50,90],['h','High-volume pivots'],['pk','Pivot length','n',2,15],['vk','Volume vs average (×)','n',1,4,.1],['hv','Levels per side','n',0,8],['h','Colours'],['bu','Bullish','c'],['be','Bearish','c']],
+ f:(d,_,a)=>{const o=OPT(a),n=d.length;if(n<o.vl*3)return[];const c=C(d),at=rma(tr(d),14),v=pvol(d,at),pcv=c.map((x,i)=>x*v[i]),sp=sma(pcv,o.vl),sv=sma(v,o.vl),vwm=sp.map((q,i)=>sv[i]>0?q/sv[i]:N);
+  return bbl2(d,o,c,at,v,vwm)}},
+
+/* 18 */wick:{n:'Wick Hunter Pro',o:1,p:[],set:1,grp:1,
+ ro:{look:40,wr:2,mr:.45,fb:3,hunt:1,fake:1,zone:1,hz:5,bu:BULL,be:BEAR},
+ sch:[['h','Detection'],['look','Range lookback (bars)','n',10,150],['wr','Wick / body ratio','n',1,5,.1],['mr','Wick share of candle','n',.25,.8,.01],['hunt','Liquidity sweep + rejection','k'],['fake','False breakouts','k'],['fb','False break window (bars)','n',1,8],['zone','Rejection zones','k'],['hz','Forward test horizon (bars)','n',1,20],['h','Colours'],['bu','Bullish','c'],['be','Bearish','c']],
+ f:(d,_,a)=>{const o=OPT(a),n=d.length;if(n<o.look+10)return[];const mk=[],zs=[],sg=[];let last=-9,tt=0,ok=0;const hiN=new Array(n).fill(N),loN=hiN.slice();
+  for(let i=o.look;i<n;i++){let h=-Infinity,l=Infinity;for(let j=i-o.look;j<i;j++){if(d[j].h>h)h=d[j].h;if(d[j].l<l)l=d[j].l}hiN[i]=h;loN[i]=l}
+  for(let i=o.look+1;i<n;i++){const x=d[i],rg=x.h-x.l;if(!(rg>0)||i-last<3)continue;const bd=Math.abs(x.c-x.o),up=x.h-Math.max(x.o,x.c),lo=Math.min(x.o,x.c)-x.l;let s=0,lb='';
+   if(o.hunt){if(x.h>hiN[i]&&x.c<hiN[i]&&up>=o.wr*Math.max(bd,.05*rg)&&up>=o.mr*rg){s=-1;lb='Hunt'}else if(x.l<loN[i]&&x.c>loN[i]&&lo>=o.wr*Math.max(bd,.05*rg)&&lo>=o.mr*rg){s=1;lb='Hunt'}}
+   if(!s&&o.fake)for(let j=Math.max(o.look+1,i-o.fb);j<i&&!s;j++){if(d[j].c>hiN[j]&&x.c<hiN[j]&&x.c<x.o){s=-1;lb='False BO'}else if(d[j].c<loN[j]&&x.c>loN[j]&&x.c>x.o){s=1;lb='False BO'}}
+   if(!s)continue;last=i;mk.push(s>0?{i,y:x.l,k:'u',c:o.bu,l:lb}:{i,y:x.h,k:'d',c:o.be,l:lb});
+   if(o.zone&&i>n-300)zs.push({a:i,b:Math.min(n-1,i+12),hi:s>0?Math.min(x.o,x.c):x.h,lo:s>0?x.l:Math.max(x.o,x.c),c:s>0?o.bu:o.be,al:.14,bd:0});
+   if(i+o.hz<n){tt++;if((d[i+o.hz].c-x.c)*s>0)ok++}}
+  const lm=mk[mk.length-1];return[GX('z',zs),GX('m',TL2(mk,160)),GX('tab',{t:'Wick Hunter',r:[['Signals',String(mk.length),GREY],['Hit rate (+'+o.hz+')',tt?Math.round(100*ok/tt)+'% of '+tt:'–',tt&&ok/tt>.5?o.bu:GREY],['Last',lm?lm.l+' · '+(n-1-lm.i)+' bars ago':'–',lm?(lm.k=='u'?o.bu:o.be):GREY]]})]}},
+
+/* 19 */ltp:{n:'TrendPro Suite (LevelUpTools-style)',o:1,p:[],set:1,grp:1,
+ ro:{f:20,m:50,s:200,adx:20,pb:1,cx:1,fill:1,bu:BULL,be:BEAR},
+ sch:[['h','Ribbon'],['f','Fast EMA','n',3,100],['m','Medium EMA','n',5,200],['s','Slow EMA','n',20,500],['fill','Fill between fast and medium','k'],['h','Signals'],['adx','ADX trend strength','n',0,50],['cx','Trend change flags','k'],['pb','Pullback continuation','k'],['h','Colours'],['bu','Bullish','c'],['be','Bearish','c']],
+ f:(d,_,a)=>{const o=OPT(a),n=d.length;if(n<o.s+10)return[];const c=C(d),e1=ema(c,o.f),e2=ema(c,o.m),e3=ema(c,o.s),at=rma(tr(d),14),ax=IND.adx.f(d,[14])[0].d,dir=new Array(n).fill(0),mk=[];let lc=-9;
+  for(let i=0;i<n;i++)dir[i]=e3[i]!=e3[i]?0:(e1[i]>e2[i]&&e2[i]>e3[i])?1:(e1[i]<e2[i]&&e2[i]<e3[i])?-1:0;
+  for(let i=2;i<n;i++){if(!dir[i])continue;const up=dir[i]>0,x=d[i];
+   if(o.cx&&dir[i-1]!=dir[i]){mk.push({i,y:up?x.l:x.h,k:up?'u':'d',c:up?o.bu:o.be,l:'Trend'});lc=i;continue}
+   if(o.pb&&ax[i]>=o.adx&&i-lc>6){const tch=up?(d[i-1].l<=e1[i-1]+.1*at[i-1]&&x.c>x.o&&x.c>e1[i]&&d[i-1].c<e1[i-1]+.5*at[i-1]):(d[i-1].h>=e1[i-1]-.1*at[i-1]&&x.c<x.o&&x.c<e1[i]&&d[i-1].c>e1[i-1]-.5*at[i-1]);if(tch){mk.push({i,y:up?x.l:x.h,k:up?'u':'d',c:up?o.bu:o.be,l:'Cont'});lc=i}}}
+  const out=[];if(o.fill)out.push(GX('poly',bandPolys(dir,e2,e1,o.bu,o.be)));out.push({...L(e1,'#4aa3ff'),w:1.4},{...L(e2,GOLD),w:1.4},{...L(e3,GREY),w:1.6},GX('m',TL2(mk,200)));
+  const s=ax[n-1];out.push(GX('tab',{t:'TrendPro',r:[['Trend',dir[n-1]>0?'Bullish':dir[n-1]<0?'Bearish':'No clear trend',dir[n-1]>0?o.bu:dir[n-1]<0?o.be:GREY],['ADX',s==s?s.toFixed(0)+(s>=o.adx?' (trending)':' (weak)'):'–',s>=o.adx?GOLD:GREY]]}));return out}},
+
+/* 20 */bba:{n:'Ultimate Arsenal (BullByte-style)',o:1,p:[],set:1,grp:1,
+ ro:{conf:3,fa:5,fb:13,fc:21,trail:1,rev:1,bu:BULL,be:BEAR},
+ sch:[['h','Confluence'],['conf','Signals need this many of 5','n',2,5],['fa','Ribbon fast EMA','n',2,50],['fb','Ribbon middle EMA','n',3,100],['fc','Ribbon slow EMA','n',5,200],['h','Display'],['trail','ATR trailing stop','k'],['rev','Reversal flags (stoch + RSI extremes)','k'],['h','Colours'],['bu','Bullish','c'],['be','Bearish','c']],
+ f:(d,_,a)=>{const o=OPT(a),n=d.length;if(n<o.fc+30)return[];const c=C(d),e1=ema(c,o.fa),e2=ema(c,o.fb),e3=ema(c,o.fc),e12=ema(c,12),e26=ema(c,26),mc=e12.map((v,i)=>v-e26[i]),mg=ema(mc,9),r7=rsiA(c,7),hv=hh(H(d),9),lv=ll(Lw(d),9),K=sma(d.map((x,i)=>hv[i]>lv[i]?100*(x.c-lv[i])/(hv[i]-lv[i]):50),3),Dd=sma(K,3),at=rma(tr(d),14),mk=[],cnt=new Array(n).fill(0);let lr=-9;
+  const sc=(i,up)=>{const x=d[i],p=d[i-1];let s=0;const q=up?1:-1;s+=(q*(e1[i]-e2[i])>0&&q*(e2[i]-e3[i])>0)?1:0;s+=(q*(mc[i]-mg[i])>0&&q*(mc[i]-mc[i-1])>0)?1:0;s+=(up?(r7[i]>50&&r7[i]<80):(r7[i]<50&&r7[i]>20))?1:0;
+   s+=(up?(K[i]>Dd[i]&&sw5(K,i,4)<45):(K[i]<Dd[i]&&Math.max(...K.slice(i-3,i+1))>55))?1:0;s+=(up?(x.c>p.h||(p.c<p.o&&x.c>x.o&&x.c>=p.o)):(x.c<p.l||(p.c>p.o&&x.c<x.o&&x.c<=p.o)))?1:0;return s};
+  let ps=0;for(let i=o.fc+2;i<n;i++){const u=sc(i,1),dn=sc(i,0),x=d[i],cu=u>=o.conf&&u>dn,cd=dn>=o.conf&&dn>u,ev=cu?1:cd?-1:0;
+   if(ev&&ev!=ps&&i-lr>2){mk.push(ev>0?{i,y:x.l,k:'u',c:o.bu,l:'Buy '+u+'/5'}:{i,y:x.h,k:'d',c:o.be,l:'Sell '+dn+'/5'});lr=i}if(ev)ps=ev;else if(u<2&&dn<2)ps=0;cnt[i]=ev>0?u:ev<0?-dn:0;
+   if(o.rev&&i-lr>3){if(K[i-1]<Dd[i-1]&&K[i]>Dd[i]&&K[i-1]<20&&r7[i]<35&&x.c>x.o){mk.push({i,y:x.l,k:'t',c:o.bu,l:'Rev ▲',dy:16,mb:5});}else if(K[i-1]>Dd[i-1]&&K[i]<Dd[i]&&K[i-1]>80&&r7[i]>65&&x.c<x.o){mk.push({i,y:x.h,k:'t',c:o.be,l:'Rev ▼',dy:-10,mb:5})}}}
+  const out=[{...L(e1,'#4aa3ff'),w:1.2},{...L(e2,GOLD),w:1.2},{...L(e3,GREY),w:1.4}];
+  if(o.trail){const S=stLine(e2,at,1.8,c);out.push({...L(S.line.map((v,i)=>S.dir[i]>0?v:N),o.bu),w:1,dash:[3,3]},{...L(S.line.map((v,i)=>S.dir[i]<0?v:N),o.be),w:1,dash:[3,3]})}
+  out.push(GX('m',TL2(mk,220)),GX('tab',{t:'Arsenal',r:[['Confluence',cnt[n-1]>0?'Buy '+cnt[n-1]+'/5':cnt[n-1]<0?'Sell '+(-cnt[n-1])+'/5':'Mixed',cnt[n-1]>0?o.bu:cnt[n-1]<0?o.be:GREY],['RSI(7) / Stoch',r7[n-1].toFixed(0)+' / '+(K[n-1]==K[n-1]?K[n-1].toFixed(0):'–'),GREY]]}));return out}},
+
+/* 22 */zeT:{n:'Zeiierman Trend (range-filter bands)',o:1,p:[],set:1,grp:1,
+ ro:{per:20,mul:2.2,fill:1,sig:1,bu:BULL,be:BEAR},
+ sch:[['h','Filter'],['per','Length','n',5,100],['mul','Multiplier','n',.5,8,.1],['h','Display'],['fill','Fill band','k'],['sig','Trend flip signals','k'],['h','Colours'],['bu','Bullish','c'],['be','Bearish','c']],
+ f:(d,_,a)=>{const o=OPT(a),n=d.length;if(n<o.per*3+5)return[];const T=zeTf(d,o),R=T.R,out=[];if(o.fill)out.push({t:'b',d:R.hi,e:R.lo,c:GREY});
+  out.push({...L(R.f.map((v,i)=>R.dir[i]>0?v:N),o.bu),w:2},{...L(R.f.map((v,i)=>R.dir[i]<0?v:N),o.be),w:2});if(o.sig)out.push(GX('m',TL2(T.mk,200)));
+  const dr=R.dir[n-1];out.push(GX('tab',{t:'Zeiierman Trend',r:[['Trend',dr>0?'Bullish':dr<0?'Bearish':'–',dr>0?o.bu:dr<0?o.be:GREY],['Noise band',R.sr[n-1]==R.sr[n-1]?fp(R.sr[n-1]):'–',GREY]]}));return out}},
+/* 23 */zeM:{n:'Zeiierman Momentum (squeeze)',p:[],set:1,grp:1,lv:[0],
+ ro:{len:20,bm:2,km:1.5,bu:BULL,be:BEAR},
+ sch:[['h','Squeeze'],['len','Length','n',5,100],['bm','Bollinger multiplier','n',1,4,.1],['km','Keltner multiplier','n',.5,3,.1],['h','Colours'],['bu','Rising','c'],['be','Falling','c']],
+ f:(d,_,a)=>{const o=OPT(a);if(d.length<o.len+5)return[];const S=sqzM(d,o.len,o.bm,o.km),v=S.v;
+  return[{t:'h',d:v,cc:v.map((q,i)=>q>=0?(q>=(v[i-1]||0)?o.bu:o.bu+'88'):(q<=(v[i-1]||0)?o.be:o.be+'88'))},{t:'d',d:S.on.map(q=>q===1?0:N),c:'#ef4444'},{t:'d',d:S.on.map(q=>q===0?0:N),c:'#22c55e'}]}},
+/* 24 */zeR:{n:'Zeiierman Reversal (exhaustion)',o:1,p:[],set:1,grp:1,
+ ro:{k:2.2,rsi:35,div:1,bu:BULL,be:BEAR},
+ sch:[['h','Detection'],['k','Band width (σ)','n',1.5,3.5,.1],['rsi','RSI exhaustion level','n',20,45],['div','Divergence bonus','k'],['h','Colours'],['bu','Bullish','c'],['be','Bearish','c']],
+ f:(d,_,a)=>{const o=OPT(a),n=d.length;if(n<60)return[];const R=zeRf(d,o),lm=R.mk[R.mk.length-1];return[GX('m',TL2(R.mk,200)),GX('tab',{t:'Reversal',r:[['Signals found',String(R.mk.length),GREY],['Last',lm?lm.l+' '+(lm.k=='u'?'long':'short')+' · '+(n-1-lm.i)+' bars ago':'–',lm?(lm.k=='u'?o.bu:o.be):GREY]]})]}}
+});
+/* BigBeluga core (kept outside the object literal for readability) */
+function bbl2(d,o,c,at,v,vw){const n=d.length,from=Math.max(0,n-o.look),zs=[],sg=[],mk=[],S=stLine(vw,at,o.mul,c),px=c[n-1],av=sma(v,50);
+ for(let i=2;i<n;i++){if(!S.dir[i]||S.dir[i]==S.dir[i-1]||!S.dir[i-1])continue;const up=S.dir[i]>0,hi=v[i]>=(av[i]||1e9);mk.push({i,y:up?d[i].l:d[i].h,k:up?'u':'d',c:up?o.bu:o.be,l:hi?'Vol trend':'',al:hi?1:.35})}
+ let poc=N,vah=N,val=N;
+ if(o.prof){let lo=Infinity,hi=-Infinity;for(let i=from;i<n;i++){if(d[i].l<lo)lo=d[i].l;if(d[i].h>hi)hi=d[i].h}if(hi>lo){const nb=o.nb,st=(hi-lo)/nb,b=new Array(nb).fill(0);
+  for(let i=from;i<n;i++){const x=d[i],b0=Math.max(0,Math.floor((x.l-lo)/st)),b1=Math.min(nb-1,Math.floor((x.h-lo)/st)),w=v[i]/(b1-b0+1);for(let k=b0;k<=b1;k++)b[k]+=w}
+  let pk=0;for(let k=1;k<nb;k++)if(b[k]>b[pk])pk=k;const tot=b.reduce((s,q)=>s+q,0);let acc=b[pk],l=pk,r=pk;while(acc<tot*o.va/100&&(l>0||r<nb-1)){const dn=l>0?b[l-1]:-1,up=r<nb-1?b[r+1]:-1;if(up>=dn){r++;acc+=b[r]}else{l--;acc+=b[l]}}
+  poc=lo+(pk+.5)*st;vah=lo+(r+1)*st;val=lo+l*st;zs.push({a:from,b:null,hi:vah,lo:val,c:GREY,al:.06,bd:0});sg.push({a:from,b:null,y:poc,c:GOLD,w:1.6,l:'POC'},{a:from,b:null,y:vah,c:GREY,w:1,dash:1,l:'VAH'},{a:from,b:null,y:val,c:GREY,w:1,dash:1,l:'VAL'})}}
+ if(o.hv){const{ph,pl}=pivots(d,o.pk,o.pk),H2=[...ph.map(p=>({...p,h:1})),...pl.map(p=>({...p,h:0}))].filter(p=>p.i>=from&&v[p.i]>=o.vk*(av[p.i]||1e9)&&!d.slice(p.c+1).some(x=>p.h?x.h>p.p:x.l<p.p));
+  H2.filter(p=>p.h&&p.p>px).sort((x,y)=>x.p-y.p).slice(0,o.hv).forEach(p=>sg.push({a:p.i,b:null,y:p.p,c:o.be,w:1,dash:1,l:'HV'}));H2.filter(p=>!p.h&&p.p<px).sort((x,y)=>y.p-x.p).slice(0,o.hv).forEach(p=>sg.push({a:p.i,b:null,y:p.p,c:o.bu,w:1,dash:1,l:'HV'}))}
+ const dr=S.dir[n-1];return[GX('z',zs),{...L(S.line.map((q,i)=>S.dir[i]>0?q:N),o.bu),w:2},{...L(S.line.map((q,i)=>S.dir[i]<0?q:N),o.be),w:2},GX('seg',sg),GX('m',TL2(mk,160)),GX('tab',{t:'Volume suite',r:[['Volume trend',dr>0?'Bullish':'Bearish',dr>0?o.bu:o.be],['POC',poc==poc?fp(poc):'–',GOLD],['Price vs value area',vah==vah?(px>vah?'above VA':px<val?'below VA':'inside VA'):'–',GREY]]})]}
+Object.keys(PREM_DESC).forEach(k=>{if(IND[k])IND[k].d=PREM_DESC[k]});
+
 ['vol','obv','mfi','cmf'].forEach(k=>IND[k].v=1);
 /* ---------- theme: pure-black dark / clean light ---------- */
 const TD={bg:'#0B0E11',gr:'#161A1E',gr2:'#12161A',ax:'#2B3139',mu:'#848E9C',hi:'#EAECEF',cr:'#5E6673',ct:'#2B3139',cth:'#fff',tag:'#1E2329',lv:'#2B3139',wm:'#fff',onp:'#0B0E11',up:'#0ECB81',dn:'#F6465D'},
@@ -768,6 +1129,7 @@ function draw(){
    for(const q of s.g){if(q.i<i0-1||q.i>i1+1)continue;const x=X(q.i),y=Y(q.y)+(q.dy||0),k=q.k;g.globalAlpha=q.al==null?1:q.al;g.fillStyle=g.strokeStyle=q.c;
     if(k=='u'||k=='d'){const dy=k=='u'?1:-1,py=y+dy*(q.off==null?8:q.off);g.beginPath();g.moveTo(x,py);g.lineTo(x-sz,py+dy*sz*1.4);g.lineTo(x+sz,py+dy*sz*1.4);g.closePath();g.fill();if(q.l&&bw>=4)g.fillText(q.l,x,dy>0?py+sz*1.4+10:py-sz*1.4-4)}
     else if(k=='o'){g.beginPath();g.arc(x,y,q.r||3,0,7);if(q.h){g.lineWidth=1.3;g.stroke()}else g.fill()}
+    else if(k=='t'){if(q.l){g.font=(q.b?'700 ':'')+(q.fs||9)+'px '+FF;g.fillText(q.l,x,y);g.font='700 9px '+FF}}
     else if(k=='p'){const w=g.measureText(q.l).width+8;g.fillRect(x-w/2,y-7,w,13);g.fillStyle='#fff';g.fillText(q.l,x,y+3)}}}
   else if(T=='tab'&&(tabN++,TBL)&&tabY<Hh*.62){const t=s.g,rw=t.r;g.font='10px '+FF;const w1=Math.max(...rw.map(r=>g.measureText(r[0]).width)),w2=Math.max(...rw.map(r=>g.measureText(r[1]).width)),tw=Math.max(w1+w2+22,g.measureText(t.t).width+14),h=(rw.length+1)*14+8,x=pw-8-tw;
    g.globalAlpha=.88;g.fillStyle=TH.tag;g.fillRect(x,tabY,tw,h);g.globalAlpha=1;g.strokeStyle=TH.ax;g.lineWidth=1;g.strokeRect(x+.5,tabY+.5,tw,h);g.fillStyle=TH.hi;g.font='700 10px '+FF;g.textAlign='left';g.fillText(t.t,x+7,tabY+14);g.font='10px '+FF;
@@ -851,7 +1213,7 @@ function change(){sv();chips();calc();again=1}
 function add(k){act.push({k,p:[...IND[k].p],col:PAL[pc++%PAL.length]});sm('im',0);change()}
 function rm(i){act.splice(i,1);change()}
 function edit(i){const a=act[i];if(IND[a.k].set)return openSet(i);if(!a.p.length)return;const s=prompt(IND[a.k].n+' parameters (comma separated)',a.p.join(','));if(s==null)return;const q=s.split(',').map(Number);if(q.length==a.p.length&&q.every(x=>x>0)){a.p=q;change()}}
-function fill(){const q=$('q').value.toLowerCase(),ks=Object.keys(IND).filter(k=>(IND[k].n+k).toLowerCase().includes(q)),pro=ks.filter(k=>IND[k].grp),rest=ks.filter(k=>!IND[k].grp),row=k=>'<div class="it" onclick="add(\''+k+'\')"><span>'+IND[k].n+'</span><small>'+(IND[k].o?'On chart':'Pane')+'</small></div>';
+function fill(){const q=$('q').value.toLowerCase(),ks=Object.keys(IND).filter(k=>(IND[k].n+k).toLowerCase().includes(q)),pro=ks.filter(k=>IND[k].grp),rest=ks.filter(k=>!IND[k].grp),row=k=>'<div class="it" onclick="add(\''+k+'\')"><span><b>'+IND[k].n+'</b>'+(IND[k].d?'<small class="ds">'+IND[k].d+'</small>':'')+'</span><small class="tg">'+(IND[k].o?'On chart':'Pane')+'</small></div>';
  $('list').innerHTML=(pro.length?'<div class="sh">Signals &amp; smart money</div>'+pro.map(row).join('')+(rest.length?'<div class="sh">Classic indicators</div>':''):'')+rest.map(row).join('')}
 function hd(){sgUI();alUI();$('ms').textContent=sn;$('mn').textContent=sy+' · '+SRC.value}
 function tb(){$('tl').className=tool=='t'?'on':'';$('hl').className=tool=='h'?'on':'';$('fb').className=tool=='f'?'on':'';$('bx').className=tool=='r'?'on':'';$('al').className=tool=='a'?'on':'';[...$('tfs').children].forEach((b,i)=>b.className=TFS[i][1]==tf?'on':'');[['ry','y'],['vl','v'],['msr','m'],['tlg','L'],['tsh','S'],['nt','n']].forEach(([i,k])=>$(i).className=tool==k?'on':'');$('mgn').className=MG?'on':''}
@@ -921,7 +1283,7 @@ function btDraw(){try{const c=$('btc');if(!c||!c.getContext||!BT.res)return;cons
  x.lineTo(sx(cv2.length-1),sy2(0));x.lineTo(sx(0),sy2(0));x.globalAlpha=.12;x.fillStyle=up?TH.up:TH.dn;x.fill();x.globalAlpha=1;x.fillStyle=TH.mu;x.font='10px '+FF;x.fillText('Cumulative R',6,12)}catch(e){}}
 
 /* ---------- desk UI ---------- */
-const DSRC=[['bot','AI Bot'],['st','Supertrend flips'],['lux','Signals & Overlays (confirmed)'],['lcn','Lorentzian Classification'],['pip','Pip Trend']];
+const DSRC=[['bot','AI Bot'],['st','Supertrend flips'],['lux','Signals & Overlays (confirmed)'],['lcn','Lorentzian Classification'],['pip','Pip Trend'],['pac','Price Action Concepts'],['orc','Oracle Pro'],['ssa','Smart Signals Assistant'],['po3','Power of Three'],['aie','AI Edge'],['zeno','Zeno Algo'],['td','DeMARK 9-13'],['tsp','Pattern Suite'],['harm','Harmonic Elite'],['zei','Zeiierman Suite'],['zeT','Zeiierman Trend'],['zeR','Zeiierman Reversal'],['bbl','BigBeluga Premium'],['wick','Wick Hunter Pro'],['ltp','TrendPro Suite'],['bba','Ultimate Arsenal'],['mdp','Market Dynamics Pro'],['ilpac','Institutional Liquidity']];
 function openDesk(tab){DS.open=1;DS.tab=tab||DS.tab;dsRender();sm('dsm',1)}
 function dsRender(){$('dst1').className=DS.tab=='paper'?'on':'';$('dst2').className=DS.tab=='test'?'on':'';
  if(DS.tab=='paper'){$('dsb').innerHTML='<small style="display:block;margin:6px 0">Simulated account: no real money, no broker. Orders fill at the last price'+(RP.on?' of the replay bar':'')+' with half the spread each way. SL and TP are checked on every tick (or every replay bar). Positions on other markets only update when you open that market.</small>'+
@@ -985,9 +1347,26 @@ $('wla').onclick=()=>{if(!WL.some(x=>x.s==sy)){WL.push({s:sy,n:sn});wlSave();wlR
 
 /* ---------- command palette + shortcuts ---------- */
 const CPK={q:'',i:0,list:[]};
+/* ---- Market presets: starting points per market family. Verify in Strategy tester; no preset guarantees profit. ---- */
+const PRESETS={
+ vol10:{n:'Volatility 10 (range, low noise)',tf:300,ind:[{k:'ema',p:[50]},{k:'bb',p:[20,2]},{k:'rsi',p:[14]},{k:'zeR'},{k:'wick'}],bt:{src:'zeR',slx:1.2,rr:1.5,max:40,fee:.02},note:'Fade extremes back to the mean. Smaller RR, quicker exits.'},
+ vol25:{n:'Volatility 25',tf:300,ind:[{k:'ema',p:[50]},{k:'zeT'},{k:'zeM'},{k:'wick'}],bt:{src:'zeT',slx:1.5,rr:2,max:50,fee:.02},note:'Trade squeeze release in the direction of the range-filter trend.'},
+ vol50:{n:'Volatility 50',tf:300,ind:[{k:'ltp',o:{f:20,m:50,s:100}},{k:'ssa'},{k:'atr',p:[14]}],bt:{src:'ssa',slx:1.8,rr:2,max:60,fee:.02},note:'Trend continuation with strength-graded signals.'},
+ vol75:{n:'Volatility 75',tf:900,ind:[{k:'ltp'},{k:'ssa',o:{str:3}},{k:'wick'},{k:'atr',p:[14]}],bt:{src:'ssa',slx:2,rr:2.5,max:60,fee:.02},note:'Wide swings: higher timeframe, strict signals (3+ stars), wider stops.'},
+ vol100:{n:'Volatility 100',tf:900,ind:[{k:'pac'},{k:'ssa',o:{str:3}},{k:'atr',p:[14]}],bt:{src:'pac',slx:2.2,rr:2.5,max:60,fee:.02},note:'Structure breaks (CHoCH) and sweeps on M15.'},
+ boomcrash:{n:'Boom / Crash',tf:60,ind:[{k:'ltp',o:{adx:18}},{k:'atr',p:[14]},{k:'wick'},{k:'zeno'}],bt:{src:'zeno',slx:2,rr:2,max:40,fee:.02},note:'Trade WITH the drift between spikes. Spikes are random: win rate is high, but rare spikes can erase many wins. Use stops, size small.'},
+ jump:{n:'Jump indices',tf:300,ind:[{k:'bb',p:[20,2.2]},{k:'rsi',p:[14]},{k:'zeR'},{k:'wick'}],bt:{src:'zeR',slx:2,rr:1.5,max:40,fee:.02},note:'Fade overshoot after jumps; avoid trading into the jump itself.'},
+ step:{n:'Step Index',tf:60,ind:[{k:'bb',p:[20,2]},{k:'rsi',p:[14]},{k:'zeR',o:{k:2}}],bt:{src:'zeR',slx:1.5,rr:1.5,max:30,fee:.02},note:'Fixed-size steps: mean-reversion scalps, tight RR.'},
+ forex:{n:'Forex majors',tf:900,ind:[{k:'pac'},{k:'ssa'},{k:'po3'},{k:'lux'}],bt:{src:'ssa',slx:1.5,rr:2,max:60,fee:.02},note:'Trade London/NY with structure + PO3 sweeps. Avoid news spikes.'},
+ gold:{n:'Gold / metals',tf:900,ind:[{k:'lux'},{k:'liqd'},{k:'po3'},{k:'pac'}],bt:{src:'pac',slx:1.8,rr:2.5,max:60,fee:.02},note:'Liquidity sweeps at session highs/lows; wide ATR stops.'},
+ crypto:{n:'Crypto',tf:900,ind:[{k:'bbl'},{k:'mdp'},{k:'ssa'},{k:'zeno'}],bt:{src:'ssa',slx:2.2,rr:2.5,max:80,fee:.05},note:'Volume-confirmed trend, wide stops, smaller size.'},
+ index:{n:'Stock indices',tf:900,ind:[{k:'pac'},{k:'po3'},{k:'ilpac'},{k:'td'}],bt:{src:'pac',slx:1.6,rr:2,max:60,fee:.02},note:'Session-open structure and PO3; DeMark for exhaustion at extremes.'}};
+const famOf=y=>/^(R_|1HZ)10V?$/.test(y)||y=='R_10'||y=='1HZ10V'?'vol10':/^(R_|1HZ)25/.test(y)?'vol25':/^(R_|1HZ)50/.test(y)?'vol50':/^(R_|1HZ)75/.test(y)?'vol75':/^(R_|1HZ)(100|150|200|250|300)/.test(y)?'vol100':/BOOM|CRASH/i.test(y)?'boomcrash':/^JD/.test(y)?'jump':/^stp/i.test(y)?'step':/^frx(XAU|XAG|XPD|XPT)/.test(y)||/PAXG/.test(y)?'gold':/^frx/.test(y)?'forex':/^cry|USDT$/.test(y)?'crypto':/^OTC_/.test(y)?'index':'forex';
+function applyPreset(f){const P=PRESETS[f||famOf(sy)];if(!P)return;act=P.ind.map((q,i)=>({k:q.k,p:q.p?[...q.p]:[...IND[q.k].p],col:PAL[i%PAL.length],o:q.o?{...q.o}:undefined}));Object.assign(BT.o,P.bt);if(P.tf&&P.tf!=tf){tf=P.tf;sp();tb();load()}change();toast('Preset: '+P.n+' · '+P.note+' · Strategy tester set to SL '+P.bt.slx+'×ATR, RR '+P.bt.rr+'. Verify before trading live.')}
 function cpItems(){const it=[],A=(t,h,f,key)=>it.push({t,h,f,key});
  A('Toggle light / dark theme','Appearance',()=>$('th').click());A('Open trading desk (paper trading)','Panels',()=>openDesk('paper'));A('Open strategy tester','Panels',()=>openDesk('test'));A('Start / stop bar replay','Panels',()=>$('rpb').click());A('Open watchlist','Panels',()=>$('wlb').click());A('Strategy hunter (playbook strategies)','Panels',()=>openHZ());
  A('Price alerts','Panels',()=>$('al').click());A('AI bot','Panels',()=>$('bt').click());A('Account','Panels',()=>$('ac').click());A('Save chart image','Chart',()=>$('sn').click());A('Reset view','Chart',()=>$('rs').click());A('Clear drawings','Chart',()=>$('cl').click());A('Undo last drawing','Chart',()=>$('un').click());
+ A('Apply market preset for current symbol','Presets',()=>applyPreset());Object.keys(PRESETS).forEach(f=>A('Preset: '+PRESETS[f].n,'Presets',()=>applyPreset(f)));
  TFS.forEach(([n,s])=>A('Timeframe '+n,'Chart',()=>{tf=s;sp();tb();load()}));['Candles','Heikin Ashi','Line','Area','OHLC bars'].forEach((n,i)=>A('Chart type: '+n,'Chart',()=>{ct=i;$('ct').value=i;sp();again=1}));
  [['Trend line (T)','t'],['Horizontal line (H)','h'],['Fibonacci (F)','f'],['Box (B)','r'],['Ray (Y)','y'],['Vertical line (V)','v'],['Ruler / measure (M)','m'],['Long position (L)','L'],['Short position (S)','S'],['Note (N)','n']].forEach(([n,k])=>A('Draw: '+n,'Tools',()=>{tool=k;tmp=null;tb()}));A('Toggle magnet snapping','Tools',()=>$('mgn').click());
  Object.keys(IND).forEach(k=>A('Add indicator: '+IND[k].n,'Indicators',()=>add(k),k));
